@@ -1,0 +1,23 @@
+repository_type: pipeline
+
+nf_core_version: 4.2.1
+
+lint:
+  files_exist:
+    - conf/igenomes.config
+    - conf/igenomes_ignored.config
+
+template:
+  org: nf-core
+  name: ezflux
+  description: Go from reads or a sequence table to metabolite fluxes with minimal
+    headaches
+  author: Nick Waters
+  version: 0.1.0dev
+  force: true
+  outdir: .
+  skip_features:
+    - igenomes
+    - fastqc
+    - gpu
+  is_nfcore: true
