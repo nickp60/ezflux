@@ -9,6 +9,29 @@ report_section_order:
     order: -1001
   "nf-core-ezflux-summary":
     order: -1002
+  found_fraction:
+    order: 100
+  growth_rates:
+    order: 90
+  import_niche:
+    order: 80
+  export_niche:
+    order: 70
+
+# Static plots written by MICOM_MERGE (<id>_mqc.png are picked up as custom-content images)
+custom_data:
+  found_fraction:
+    section_name: "MICOM: model database coverage"
+    description: "Share of each community that was matched to a model in the model database: by number of taxa and by abundance. Samples with little abundance matched (dotted line: 50%) are poorly represented by the models."
+  growth_rates:
+    section_name: "MICOM: growth rates"
+    description: "Growth rate of every taxon in every sample (and medium), as drawn by <code>micom.viz.plot_growth</code>. Interactive version: <code>merged/ezflux.growth_rates.html</code>."
+  import_niche:
+    section_name: "MICOM: import niches"
+    description: "UMAP of the imported metabolite fluxes per taxon (<code>plot_exchanges_per_taxon</code>, direction import). Interactive version: <code>merged/ezflux.import_niche.html</code>."
+  export_niche:
+    section_name: "MICOM: export niches"
+    description: "UMAP of the exported metabolite fluxes per taxon (<code>plot_exchanges_per_taxon</code>, direction export). Interactive version: <code>merged/ezflux.export_niche.html</code>."
 
 export_plots: true
 

@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "sylph_annotate"
+description: >-
+  Re-annotates raw sylph profile output with the model metadata and keeps bacterial species abundances.
+keywords:
+  - sylph
+  - taxonomy
+  - annotation
+tools:
+  - "tidyverse":
+      description: "R packages for data science"
+      homepage: "https://www.tidyverse.org/"
+      documentation: "https://www.tidyverse.org/"
+      licence: ["MIT"]
+      identifier: ""
+input:
+  - record(id, profile):
+      type: record
+      description: id = sample id; profile = raw `sylph profile` TSV
+  - model_metadata:
+      type: file
+      description: "tab-separated, no header: Genome_file, clade_name (GTDB lineage ending in s__<species>)"
+output:
+  - record(id, abundances):
+      type: record
+      description: CSV with columns placeholder, sample_id, species, abundance
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - R:
+          type: string
+          description: The name of the tool
+      - Rscript -e 'cat(as.character(getRversion()))':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

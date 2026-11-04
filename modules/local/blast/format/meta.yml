@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "blast_format"
+description: >-
+  Keeps the best BLAST hit(s) per ASV and converts the ASV counts of one sample to species abundances through the model metadata.
+keywords:
+  - blast
+  - 16S
+  - annotation
+tools:
+  - "tidyverse":
+      description: "R packages for data science"
+      homepage: "https://www.tidyverse.org/"
+      documentation: "https://www.tidyverse.org/"
+      licence: ["MIT"]
+      identifier: ""
+input:
+  - record(id, counts, blast):
+      type: record
+      description: id = sample id; counts = long ASV counts of all samples; blast = tabular BLAST output of all ASVs
+  - model_metadata:
+      type: file
+      description: "tab-separated, no header: Genome_file, clade_name"
+output:
+  - record(id, abundances, detailed):
+      type: record
+      description: abundances = CSV with columns placeholder, sample_id, species, abundance; detailed = best hit(s) per ASV
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - R:
+          type: string
+          description: The name of the tool
+      - Rscript -e 'cat(as.character(getRversion()))':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

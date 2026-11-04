@@ -11,7 +11,6 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
-include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
@@ -31,7 +30,13 @@ workflow PIPELINE_INITIALISATION {
     monochrome_logs   // boolean: Do not use coloured log outputs
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
-    input             //  string: Path to input samplesheet
+    input             //  string: Path to input samplesheet (reads)
+    seqtab_input      //  string: Path to a wide ASV sequence table (alternative to the samplesheet)
+    media             //  string: Path to media samplesheet
+    medium            //  string: Default medium used when no media samplesheet is given
+    sylph_db          //  string: Path to the sylph database (only needed for reads)
+    model_metadata    //  string: Path to the model metadata (taxonomy -> model file)
+    blast_db          //  string: Path to a BLAST 16S database directory (only needed with --seqtab_input)
     help              // boolean: Display help message and exit
     help_full         // boolean: Show the full help message
     show_hidden       // boolean: Show hidden parameters in the help message
@@ -77,7 +82,7 @@ workflow PIPELINE_INITIALISATION {
         before_text = before_text.replaceAll(/\033\[[0-9;]*m/, '')
     }
 
-    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --outdir <OUTDIR>"
+    command = "nextflow run ${workflow.manifest.name} -profile <docker/singularity/.../institute> --input samplesheet.csv --media media.csv --micom_db agora.qza --model_metadata agora.metadata.csv --outdir <OUTDIR>"
 
     UTILS_NFSCHEMA_PLUGIN (
         workflow,
@@ -100,31 +105,40 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
-    // Create channel from input file provided through params.input
+    // Read and cross-validate the samplesheets: EITHER reads (--input) OR an ASV table (--seqtab_input)
     //
+    if (input && seqtab_input) {
+        error("Use either --input (reads) or --seqtab_input (ASV table), not both")
+    }
+    if (!model_metadata) {
+        error("--model_metadata is required (the metadata file shipped with the model database)")
+    }
+    if (input && !sylph_db) {
+        error("--input (reads) needs --sylph_db")
+    }
+    if (seqtab_input && !blast_db) {
+        error("--seqtab_input needs --blast_db (a BLAST 16S database directory)")
+    }
 
-    channel
-        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
-        .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
-        }
-        .groupTuple()
-        .map { samplesheet ->
-            validateInputSamplesheet(samplesheet)
-        }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
-        }
-        .set { ch_samplesheet }
+    def reads_rows = input ? readsSamples(samplesheetToList(input, "${projectDir}/assets/schema_input.json")) : []
+    def seqtab_file = seqtab_input ? file(seqtab_input, checkIfExists: true) : null
+    def asv_rows = seqtab_file ? seqtabSamples(seqtab_file) : []
+    def ids = (reads_rows + asv_rows).collect { sample -> sample.id }
+    def media_rows = media
+        ? samplesheetToList(media, "${projectDir}/assets/schema_media.json")
+        : [ [ 'default', file(medium, checkIfExists: true), [] ] ]
+
+    // one Map per sample (reads route / ASV route) and per sample x diet
+    channel.fromList(reads_rows).set { ch_reads }
+    channel.fromList(asv_rows).set { ch_asv_samples }
+    channel.fromList(expandDiets(media_rows, ids)).set { ch_diets }
+    channel.fromList(seqtab_file ? [ seqtab_file ] : []).set { ch_seqtab }
 
     emit:
-    samplesheet = ch_samplesheet
+    reads       = ch_reads         // channel: [ id, single_end, n_runs, fastqs ] (maps)
+    asv_samples = ch_asv_samples   // channel: [ id ] (maps)
+    seqtab      = ch_seqtab        // channel: path (empty unless --seqtab_input)
+    diets       = ch_diets         // channel: [ id, medium, diet ] (maps), one per sample and diet
     versions    = ch_versions
 }
 
@@ -180,28 +194,75 @@ workflow PIPELINE_COMPLETION {
 */
 
 //
-// Validate channels from input samplesheet
+// Samplesheet rows [ [ id, run_accession ], fastq_1, fastq_2 or [] ] -> one Map per sample.
+// fastqs are ordered by run_accession as r1_run1, r2_run1, r1_run2, ... (the layout cat/fastq expects).
 //
-def validateInputSamplesheet(input) {
-    def (metas, fastqs) = input[1..2]
-
-    // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
-    def endedness_ok = metas.collect{ meta -> meta.single_end }.unique().size == 1
-    if (!endedness_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
+def readsSamples(rows) {
+    return rows.groupBy { row -> row[0].id.toString() }.collect { id, runs ->
+        if (runs.collect { run -> run[2] as boolean }.unique().size() > 1) {
+            error("Sample '${id}' mixes single-end and paired-end runs")
+        }
+        def sorted = runs.sort(false) { run -> (run[0].run_accession ?: '').toString() }
+        return [
+            id: id,
+            single_end: !sorted[0][2],
+            n_runs: sorted.size(),
+            fastqs: sorted.collectMany { run -> run[2] ? [ run[1], run[2] ] : [ run[1] ] },
+        ]
     }
-
-    return [ metas[0], fastqs ]
 }
+
+//
+// The sample ids of a wide ASV table are its first column
+//
+def seqtabSamples(seqtab) {
+    def lines = seqtab.readLines().findAll { line -> line.trim() }
+    def sep = lines[0].contains('\t') ? '\t' : ','
+    def ids = lines.drop(1).collect { line -> line.split(sep, 2)[0].trim().replaceAll(/^"|"$/, '') }
+    if (!ids) {
+        error("The ASV table has no samples (rows): ${seqtab}")
+    }
+    def dups = ids.findAll { id -> ids.count(id) > 1 }.unique()
+    if (dups) {
+        error("The ASV table has duplicated sample ids in its first column: ${dups.join(', ')}")
+    }
+    if (ids.any { id -> !id || id =~ /\s/ }) {
+        error("The ASV table sample ids (first column) cannot be empty or contain spaces")
+    }
+    return ids.collect { id -> [ id: id ] }
+}
+
+//
+// Media rows [ medium_name, medium_path, sample_id or [] ] -> one Map per sample and diet.
+// A row without a sample_id applies to every sample.
+//
+def expandDiets(media_rows, ids) {
+    def unknown = media_rows.collect { row -> row[2] }.findAll { id -> id && !(id.toString() in ids) }.unique()
+    if (unknown) {
+        error("--media lists sample_id(s) that are not in the input: ${unknown.join(', ')}")
+    }
+    return ids.collectMany { id ->
+        def mine = media_rows.findAll { row -> !row[2] || row[2].toString() == id }
+        if (!mine) {
+            error("Sample '${id}' has no diet: add a --media row with sample_id '${id}' or one without a sample_id")
+        }
+        def names = mine.collect { row -> row[0].toString() }
+        if (names.toSet().size() != names.size()) {
+            error("Sample '${id}' gets the same medium_name more than once in --media")
+        }
+        return mine.collect { row -> [ id: id, medium: row[0].toString(), diet: row[1] ] }
+    }
+}
+
 //
 // Generate methods description for MultiQC
 //
 def toolCitationText() {
-    // TODO nf-core: Optionally add in-text citation tools to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "Tool (Foo et al. 2023)" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def citation_text = [
             "Tools used in the workflow included:",
+            "MICOM (Diener et al. 2020),",
+            "sylph (Shaw & Yu 2024),",
+            "BLAST+ (Camacho et al. 2009),",
             "MultiQC (Ewels et al. 2016)",
             "."
         ].join(' ').trim()
@@ -210,10 +271,10 @@ def toolCitationText() {
 }
 
 def toolBibliographyText() {
-    // TODO nf-core: Optionally add bibliographic entries to this list.
-    // Can use ternary operators to dynamically construct based conditions, e.g. params["run_xyz"] ? "<li>Author (2023) Pub name, Journal, DOI</li>" : "",
-    // Uncomment function in methodsDescriptionText to render in MultiQC report
     def reference_text = [
+            "<li>Diener, C., Gibbons, S. M., & Resendis-Antonio, O. (2020). MICOM: Metagenome-scale modeling to infer metabolic interactions in the gut microbiota. mSystems, 5(1), e00606-19. doi: 10.1128/mSystems.00606-19</li>",
+            "<li>Camacho, C., Coulouris, G., Avagyan, V., et al. (2009). BLAST+: architecture and applications. BMC Bioinformatics, 10, 421. doi: 10.1186/1471-2105-10-421</li>",
+            "<li>Shaw, J., & Yu, Y. W. (2024). Rapid species-level metagenome profiling and containment estimation with sylph. Nature Biotechnology. doi: 10.1038/s41587-024-02412-y</li>",
             "<li>Ewels, P., Magnusson, M., Lundin, S., & Käller, M. (2016). MultiQC: summarize analysis results for multiple tools and samples in a single report. Bioinformatics , 32(19), 3047–3048. doi: /10.1093/bioinformatics/btw354</li>"
         ].join(' ').trim()
 
@@ -244,9 +305,8 @@ def methodsDescriptionText(mqc_methods_yaml) {
     meta["tool_citations"] = ""
     meta["tool_bibliography"] = ""
 
-    // TODO nf-core: Only uncomment below if logic in toolCitationText/toolBibliographyText has been filled!
-    // meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
-    // meta["tool_bibliography"] = toolBibliographyText()
+    meta["tool_citations"] = toolCitationText().replaceAll(", \\.", ".").replaceAll("\\. \\.", ".").replaceAll(", \\.", ".")
+    meta["tool_bibliography"] = toolBibliographyText()
 
 
     def methods_text = mqc_methods_yaml.text

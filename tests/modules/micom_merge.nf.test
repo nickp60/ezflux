@@ -1,0 +1,45 @@
+nextflow_workflow {
+
+    name "Test MICOM_MERGE"
+    script "./wrappers.nf"
+    workflow "TEST_MICOM_MERGE"
+    tag "modules_local"
+    tag "micom_merge"
+
+    test("merge two growth results (two samples, two media)") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    file("\${projectDir}/tests/data/merge/ASV_SAMPLE1__diet_a.zip"),
+                    file("\${projectDir}/tests/data/merge/2614__diet_b.zip")
+                )
+                input[1] = channel.of(
+                    file("\${projectDir}/tests/data/merge/ASV_SAMPLE1__diet_a.build_manifest.csv"),
+                    file("\${projectDir}/tests/data/merge/2614__diet_b.build_manifest.csv")
+                )
+                """
+            }
+        }
+        then {
+            def r = workflow.out.result[0]
+            def names = { files -> files.collect { f -> f.toString().tokenize('/')[-1] }.sort() }
+            def rates = new File(r.growth_rates.toString()).readLines().drop(1)
+            assertAll(
+                { assert workflow.success },
+                { assert rates.any { line -> line.contains('ASV_SAMPLE1__diet_a') } },
+                { assert rates.any { line -> line.contains('2614__diet_b') } },
+                { assert new File(r.import_niche.toString()).text.contains('<html') },
+                { assert new File(r.export_niche.toString()).text.contains('<html') },
+                { assert new File(r.production_rates.toString()).size() > 0 },
+                { assert new File(r.consumption_rates.toString()).size() > 0 },
+                { assert new File(r.growth.toString()).size() > 0 },
+                { assert names(r.plots) == ['export_niche_mqc.png', 'found_fraction_mqc.png', 'growth_rates_mqc.png', 'import_niche_mqc.png'] },
+                { assert r.plots.every { png -> new File(png.toString()).size() > 1000 } },
+                { assert new File(r.growth_rates_html.toString()).text.contains('vega') },
+                // one row per sample, from the build manifests
+                { assert new File(r.found_fraction.toString()).readLines().size() == 3 }
+            )
+        }
+    }
+}

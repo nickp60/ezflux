@@ -1,0 +1,4 @@
+Sample_file	Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	Eff_cov	ANI_5-95_percentile	Eff_lambda	Lambda_5-95_percentile	Median_cov	Mean_cov_geq1	Containment_ind	Naive_ANI	kmers_reassigned	Contig_name
+/data/reads_1.fastq.gz	/db/genomes/GCF_000005845.2_genomic.fna.gz	60.0	55.0	99.1	5.2	98.9-99.3	5.1	4.9-5.3	5.0	5.3	1000/1100	99.0	0	NC_x
+/data/reads_1.fastq.gz	/db/genomes/GCF_000026225.1_genomic.fna.gz	30.0	33.0	99.1	5.2	98.9-99.3	5.1	4.9-5.3	5.0	5.3	1000/1100	99.0	0	NC_x
+/data/reads_1.fastq.gz	/db/genomes/GCF_000007345.1_genomic.fna.gz	10.0	12.0	99.1	5.2	98.9-99.3	5.1	4.9-5.3	5.0	5.3	1000/1100	99.0	0	NC_x

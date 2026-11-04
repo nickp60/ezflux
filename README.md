@@ -5,6 +5,7 @@
   </picture>
 </h1>
 
+
 [![Open in GitHub Codespaces](https://img.shields.io/badge/Open_In_GitHub_Codespaces-black?labelColor=grey&logo=github)](https://github.com/codespaces/new/nf-core/ezflux)
 [![GitHub Actions CI Status](https://github.com/nf-core/ezflux/actions/workflows/nf-test.yml/badge.svg)](https://github.com/nf-core/ezflux/actions/workflows/nf-test.yml)
 [![GitHub Actions Linting Status](https://github.com/nf-core/ezflux/actions/workflows/linting.yml/badge.svg)](https://github.com/nf-core/ezflux/actions/workflows/linting.yml)[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/ezflux/results)[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
@@ -21,48 +22,66 @@
 
 ## Introduction
 
-**nf-core/ezflux** is a bioinformatics pipeline that ...
+**nf-core/ezflux** is a bioinformatics pipeline that predicts which metabolites the members of a microbial community take up and secrete on a given diet. It takes metagenomic reads or ASV tables, builds [MICOM](https://micom-dev.github.io/micom/) community metabolic models from them, simulates growth on one or more diets and writes merged exchange tables, production/consumption rates and niche plots.
 
-<!-- TODO nf-core:
-   Complete this sentence with a 2-3 sentence summary of what types of data the pipeline ingests, a brief overview of the
-   major pipeline sections and the types of output it produces. You're giving an overview to someone new
-   to nf-core here, in 15-20 seconds. For an example, see https://github.com/nf-core/rnaseq/blob/master/README.md#introduction
--->
-
-<!-- TODO nf-core: Include a figure that guides the user through the major workflow steps. Many nf-core
-     workflows use the "tube map" design for that. See https://nf-co.re/docs/community/brand/workflow-schematics#examples for examples.   -->
-<!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->2. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+1. **Preprocessing**
+   - Reads: runs of the same sample are concatenated (`cat/fastq`), profiled with [`sylph`](https://github.com/bluenote-1577/sylph) and re-annotated with the model metadata (R)
+   - Wide ASV table (`--seqtab_input`): ASVs are extracted to FASTA, searched once against a 16S database with [`blastn`](https://blast.ncbi.nlm.nih.gov/), the best hits are formatted (R) and mapped to species per sample with the model metadata
+   - Match the species to the models of the MICOM database (`MICOM_TAXONOMY`)
+2. **Growth**: build each community and simulate growth for every sample and diet ([`MICOM`](https://micom-dev.github.io/micom/), cooperative trade-off FBA)
+3. **Merging**: combine all results, export exchanges and rates, plot import/export niches, growth rates and how much of each community was found in the model database (static versions of the plots are in the MultiQC report)
+4. Software versions and run summary ([`MultiQC`](http://multiqc.info/))
 
 ## Usage
 
 > [!NOTE]
 > If you are new to Nextflow and nf-core, please refer to [this page](https://nf-co.re/docs/get_started/environment_setup/overview) on how to set-up Nextflow. Make sure to [test your setup](https://nf-co.re/docs/get_started/run-your-first-pipeline) with `-profile test` before running the workflow on actual data.
 
-<!-- TODO nf-core: Describe the minimum required steps to execute the pipeline, e.g. how to prepare samplesheets.
-     Explain what rows and columns represent. For instance (please edit as appropriate):
-
-First, prepare a samplesheet with your input data that looks as follows:
+First, prepare a samplesheet with your samples:
 
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample,run_accession,fastq_1,fastq_2
+2612,ERR5766176,/data/2612_run1_1.fastq.gz,/data/2612_run1_2.fastq.gz
+2612,ERR5766176_B,/data/2612_run2_1.fastq.gz,/data/2612_run2_2.fastq.gz
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+`sample` can be a name or a number. Rows with the same `sample` and different `run_accession` are concatenated before profiling. `fastq_2` is empty for single-end data.
 
--->
+Instead of reads you can give a **wide ASV sequence table** with `--seqtab_input` (sample ids in the first column, ASV sequences as the other columns, counts as values). The sample ids are read from the table; use `--input` or `--seqtab_input`, not both.
+
+Optionally, a media sheet with the diets to simulate (without it every sample grows on `--medium`, by default the western diet from Zenodo):
+
+`media.csv`:
+
+```csv
+medium_name,medium_path,sample_id
+western_diet,/data/western_diet_gut_agora.qza,
+high_fiber,/data/high_fiber_gut_agora.qza,GUT_ASV
+```
+
+A row without `sample_id` applies to all samples; a row with one applies to that sample only. Every sample needs at least one diet.
 
 Now, you can run the pipeline using:
 
-<!-- TODO nf-core: update the following command to include all required parameters for a minimal example -->
 
 ```bash
 nextflow run nf-core/ezflux \
    -profile <docker/singularity/.../institute> \
    --input samplesheet.csv \
+   --media media.csv \
+   --micom_db agora201_refseq216_species_1.qza \
+   --model_metadata agora2.metadata.csv \
+   --sylph_db agora2.syldb \          # samples with reads
+   --blast_db /db/16S_blast \         # only with --seqtab_input
    --outdir <OUTDIR>
+```
+
+`-profile test` runs the nf-core/funcprofiler test samplesheet (integer sample IDs, two runs per sample) and expects `agora2.syldb`, `agora2.metadata.csv` and `agora201_refseq216_species_1.qza` in the launch directory. To check your set-up with the tiny bundled dataset (ASV tables, no license or downloads needed, run from the pipeline directory):
+
+```bash
+nextflow run . -profile test_local,<docker/singularity/.../conda> --outdir test_results
 ```
 
 > [!WARNING]
@@ -78,7 +97,7 @@ For more details about the output files and reports, please refer to the
 
 ## Credits
 
-nf-core/ezflux was originally written by Nick Waters.
+nf-core/ezflux was originally written by Nick Waters
 
 We thank the following people for their extensive assistance in the development of this pipeline:
 
@@ -94,8 +113,6 @@ For further information or help, don't hesitate to get in touch on the [Slack `#
 
 <!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
 <!-- If you use nf-core/ezflux for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
-
-<!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
 

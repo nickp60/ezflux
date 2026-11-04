@@ -1,0 +1,13 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
+channels:
+  - conda-forge
+  - bioconda
+  - gurobi
+dependencies:
+  # nf-core lint wants exact pins. Replace each with the versions from your working env,
+  # e.g.  conda list -n isablmicom | grep -E "micom|gurobi|pandas|numpy"
+  - conda-forge::micom
+  - gurobi::gurobi
+  - conda-forge::pandas
+  - conda-forge::numpy

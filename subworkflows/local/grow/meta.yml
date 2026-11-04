@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+# Typed subworkflow (Nextflow 26.10 syntax)
+name: "grow"
+description: 'Grows every sample on every diet that applies to it.'
+keywords:
+  - micom
+  - growth
+components:
+  - micom/grow
+input:
+  - taxonomy:
+      type: channel
+      description: 'record(id, taxonomy) per sample'
+  - diet_rows:
+      type: channel
+      description: '[ id, medium, diet ] maps, one per sample and diet'
+  - micom_db:
+      type: channel
+      description: 'micom model database (value)'
+output:
+  - growth:
+      type: channel
+      description: 'record(id, medium, zip, build_manifest) per sample and diet'
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

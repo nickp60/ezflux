@@ -1,0 +1,163 @@
+nextflow_function {
+
+    name "Test the input functions"
+    script "../main.nf"
+    tag "subworkflows"
+    tag "subworkflows_local"
+    tag "utils_nfcore_ezflux_pipeline"
+
+    test("readsSamples - runs of one sample are merged and ordered by run_accession") {
+        function "readsSamples"
+        when {
+            function {
+                """
+                input[0] = [
+                    [ [ id:'2612', run_accession:'run_b' ], file('b_1.fq.gz'), file('b_2.fq.gz') ],
+                    [ [ id:'2612', run_accession:'run_a' ], file('a_1.fq.gz'), file('a_2.fq.gz') ],
+                    [ [ id:'007',  run_accession:null ],    file('c_1.fq.gz'), [] ]
+                ]
+                """
+            }
+        }
+        then {
+            def samples = function.result.sort { sample -> sample.id }
+            def names = { sample -> sample.fastqs.collect { f -> f.toString().tokenize('/')[-1] } }
+            assertAll(
+                { assert function.success },
+                { assert samples.collect { sample -> sample.id } == [ '007', '2612' ] },    // ids stay text, leading zeros kept
+                { assert samples[0].single_end && samples[0].n_runs == 1 && names(samples[0]) == [ 'c_1.fq.gz' ] },
+                { assert !samples[1].single_end && samples[1].n_runs == 2 },
+                { assert names(samples[1]) == [ 'a_1.fq.gz', 'a_2.fq.gz', 'b_1.fq.gz', 'b_2.fq.gz' ] }
+            )
+        }
+    }
+
+    test("readsSamples - mixing single-end and paired-end runs fails") {
+        function "readsSamples"
+        when {
+            function {
+                """
+                input[0] = [
+                    [ [ id:'1', run_accession:'a' ], file('a_1.fq.gz'), file('a_2.fq.gz') ],
+                    [ [ id:'1', run_accession:'b' ], file('b_1.fq.gz'), [] ]
+                ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+
+    test("seqtabSamples - sample ids are the first column") {
+        function "seqtabSamples"
+        when {
+            function {
+                """
+                input[0] = file("\${projectDir}/assets/test_data/seqtab.csv")
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert function.success },
+                { assert function.result.collect { sample -> sample.id } == [ 'ASV_SAMPLE1', '2614' ] }
+            )
+        }
+    }
+
+    test("seqtabSamples - duplicated sample ids fail") {
+        function "seqtabSamples"
+        when {
+            function {
+                """
+                input[0] = file("\${projectDir}/tests/data/seqtab_duplicated.csv")
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+
+    test("seqtabSamples - a table without samples fails") {
+        function "seqtabSamples"
+        when {
+            function {
+                """
+                input[0] = file("\${projectDir}/tests/data/seqtab_no_samples.csv")
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+
+    test("expandDiets - a row without sample_id applies to everyone, one with sample_id only to that sample") {
+        function "expandDiets"
+        when {
+            function {
+                """
+                input[0] = [
+                    [ 'diet_a', file('a.qza'), [] ],
+                    [ 'diet_b', file('b.qza'), '2614' ]
+                ]
+                input[1] = [ 'S1', '2614' ]
+                """
+            }
+        }
+        then {
+            def pairs = function.result.collect { diet -> "${diet.id}:${diet.medium}".toString() }.sort()
+            assertAll(
+                { assert function.success },
+                { assert pairs == [ '2614:diet_a', '2614:diet_b', 'S1:diet_a' ] }
+            )
+        }
+    }
+
+    test("expandDiets - a media row for an unknown sample fails") {
+        function "expandDiets"
+        when {
+            function {
+                """
+                input[0] = [ [ 'diet_a', file('a.qza'), 'nobody' ] ]
+                input[1] = [ 'S1' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+
+    test("expandDiets - a sample without any diet fails") {
+        function "expandDiets"
+        when {
+            function {
+                """
+                input[0] = [ [ 'diet_a', file('a.qza'), 'S1' ] ]
+                input[1] = [ 'S1', 'S2' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+
+    test("expandDiets - the same medium_name twice for one sample fails") {
+        function "expandDiets"
+        when {
+            function {
+                """
+                input[0] = [ [ 'diet_a', file('a.qza'), [] ], [ 'diet_a', file('b.qza'), 'S1' ] ]
+                input[1] = [ 'S1' ]
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
+}

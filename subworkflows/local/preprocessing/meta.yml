@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+# Typed subworkflow (Nextflow 26.10 syntax)
+name: "preprocessing"
+description: 'Turns reads (sylph) or an ASV table (blastn) into one micom taxonomy table per sample.'
+keywords:
+  - sylph
+  - blast
+  - taxonomy
+  - micom
+components:
+  - cat/fastq
+  - sylph/profile
+  - blast/blastn
+  - sylph/annotate
+  - asv/tofasta
+  - blast/format
+  - micom/taxonomy
+input:
+  - reads_rows:
+      type: channel
+      description: '[ id, single_end, n_runs, fastqs ] maps, one per sample with reads'
+  - asv_rows:
+      type: channel
+      description: '[ id ] maps, one per sample of the ASV table'
+  - seqtab:
+      type: channel
+      description: 'the wide ASV table (empty without --seqtab_input)'
+  - sylph_db:
+      type: channel
+      description: 'sylph database (empty without --input)'
+  - blast_db:
+      type: channel
+      description: 'BLAST 16S database directory (empty without --seqtab_input)'
+  - model_metadata:
+      type: channel
+      description: 'model metadata (value)'
+  - micom_db:
+      type: channel
+      description: 'micom model database (value)'
+output:
+  - taxonomy:
+      type: channel
+      description: 'record(id, taxonomy) per sample'
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

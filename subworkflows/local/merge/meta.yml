@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/subworkflows/yaml-schema.json
+# Typed subworkflow (Nextflow 26.10 syntax)
+name: "merge"
+description: 'Merges all growth results, exports the tables and draws the plots.'
+keywords:
+  - micom
+  - plots
+components:
+  - micom/merge
+input:
+  - growth:
+      type: channel
+      description: 'record(id, medium, zip, build_manifest) per sample and diet'
+output:
+  - plots:
+      type: channel
+      description: 'static *_mqc.png plots for MultiQC'
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

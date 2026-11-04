@@ -1,3 +1,4 @@
-sample,fastq_1,fastq_2
-SAMPLE_PAIRED_END,/path/to/fastq/files/AEG588A1_S1_L002_R1_001.fastq.gz,/path/to/fastq/files/AEG588A1_S1_L002_R2_001.fastq.gz
-SAMPLE_SINGLE_END,/path/to/fastq/files/AEG588A4_S4_L003_R1_001.fastq.gz,
+sample,run_accession,fastq_1,fastq_2
+2612,ERR5766176,/path/to/reads/2612_run1_1.fastq.gz,/path/to/reads/2612_run1_2.fastq.gz
+2612,ERR5766176_B,/path/to/reads/2612_run2_1.fastq.gz,/path/to/reads/2612_run2_2.fastq.gz
+2613,,/path/to/reads/2613_1.fastq.gz,

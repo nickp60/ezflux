@@ -51,7 +51,7 @@ For more detail, see the [blog post](https://nf-co.re/blog/2026/statement-on-ai)
 
 For further information and help, see the [nf-core/ezflux documentation](https://nf-co.re/ezflux/usage) or ask on the nf-core [#ezflux](https://nfcore.slack.com/channels/ezflux) Slack channel ([join our Slack here](https://nf-co.re/join/slack)).
 
-### GitHub Codespaces
+-### GitHub Codespaces
 
 You can contribute to nf-core/ezflux without installing a local development environment on your machine by using [GitHub Codespaces](https://github.com/codespaces).
 
@@ -60,6 +60,7 @@ Most nf-core repositories include a devcontainer configuration, which creates a 
 The environment includes pre-installed nf-core tools, Nextflow, and a few other helpful utilities via a Docker container.
 
 To get started, open the repository in [Codespaces](https://github.com/nf-core/ezflux/codespaces).
+
 
 ### Testing
 

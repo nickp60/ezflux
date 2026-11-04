@@ -1,0 +1,3 @@
+medium_name,medium_path,sample_id
+western_diet,/path/to/media/western_diet_gut_agora.qza,
+high_fiber,/path/to/media/high_fiber_gut_agora.qza,GUT_ASV

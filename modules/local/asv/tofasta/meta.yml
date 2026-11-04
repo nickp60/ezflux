@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "asv_tofasta"
+description: >-
+  Converts a wide ASV table (samples as rows, ASV sequences as columns) to a FASTA file and a long count table.
+keywords:
+  - ASV
+  - 16S
+  - fasta
+tools:
+  - "R":
+      description: "R language for statistical computing"
+      homepage: "https://www.r-project.org/"
+      documentation: "https://www.r-project.org/"
+      licence: ["GPL-2"]
+      identifier: ""
+input:
+  - seqtab:
+      type: file
+      description: "wide ASV table: sample ids in the first column, ASV sequences as the other column names, counts as values"
+output:
+  - record(fasta, counts):
+      type: record
+      description: fasta = ASV1, ASV2, ... in column order; counts = CSV with columns sample_id, asv, count
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - R:
+          type: string
+          description: The name of the tool
+      - Rscript -e 'cat(as.character(getRversion()))':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

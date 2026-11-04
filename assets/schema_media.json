@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/ezflux/master/assets/schema_media.json",
+    "title": "nf-core/ezflux pipeline - params.media schema",
+    "description": "Schema for the media samplesheet provided with params.media. One row per diet; an empty sample_id applies the diet to every sample.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "medium_name": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "medium_name must be provided and cannot contain spaces"
+            },
+            "medium_path": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.qza(\\?\\S*)?$",
+                "errorMessage": "medium_path must point to a q2-micom medium artifact (.qza)"
+            },
+            "sample_id": {
+                "type": [
+                    "string",
+                    "integer"
+                ],
+                "pattern": "^\\S+$",
+                "errorMessage": "sample_id cannot contain spaces"
+            }
+        },
+        "required": [
+            "medium_name",
+            "medium_path"
+        ]
+    }
+}

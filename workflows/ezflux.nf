@@ -4,6 +4,9 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
+include { PREPROCESSING          } from '../subworkflows/local/preprocessing/main'
+include { GROW                   } from '../subworkflows/local/grow/main'
+include { MERGE                  } from '../subworkflows/local/merge/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -18,7 +21,14 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_ezfl
 workflow EZFLUX {
 
     take:
-    ch_samplesheet // channel: samplesheet read in from --input
+    ch_reads       // channel: [ id, single_end, n_runs, fastqs ] per sample with reads
+    ch_asv_samples // channel: [ id ] per sample of the ASV table
+    ch_seqtab      // channel: the ASV table
+    ch_diets       // channel: [ id, medium, diet ] per sample and diet
+    micom_db       // string: path to the micom model database
+    sylph_db       // string: path to the sylph database (reads only)
+    model_metadata // string: path to the model metadata (taxonomy -> model files)
+    blast_db       // string: path to a BLAST 16S database directory (ASV tables only)
     multiqc_config
     multiqc_logo
     multiqc_methods_description
@@ -28,6 +38,24 @@ workflow EZFLUX {
 
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
+
+    def ch_micom_db       = channel.value(file(micom_db, checkIfExists: true))
+    def ch_model_metadata = channel.value(file(model_metadata, checkIfExists: true))
+    // optional databases: an empty channel when not given (channel.empty() breaks .map in the typed subworkflow)
+    def ch_sylph_db       = sylph_db ? channel.value(file(sylph_db, checkIfExists: true)) : channel.fromList([])
+    def ch_blast_db       = blast_db ? channel.value(file(blast_db, checkIfExists: true)) : channel.fromList([])
+
+    //
+    // PHASE 1 - PREPROCESSING: reads (sylph) or ASV table (blastn) -> micom taxonomy tables
+    // PHASE 2 - GROWTH: every sample on every diet that applies to it
+    // PHASE 3 - MERGING: combined results, exchanges, growth rates and plots
+    //
+    PREPROCESSING(ch_reads, ch_asv_samples, ch_seqtab, ch_sylph_db, ch_blast_db, ch_model_metadata, ch_micom_db)
+    GROW(PREPROCESSING.out.taxonomy, ch_diets, ch_micom_db)
+    MERGE(GROW.out.growth)
+
+    // the static plots (growth rates, found fraction, niches) go into the MultiQC report
+    ch_multiqc_files = ch_multiqc_files.mix(MERGE.out.plots)
 
     //
     // Collate and save software versions

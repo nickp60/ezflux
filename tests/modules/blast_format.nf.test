@@ -1,0 +1,75 @@
+nextflow_workflow {
+
+    name "Test BLAST_FORMAT"
+    script "./wrappers.nf"
+    workflow "TEST_BLAST_FORMAT"
+    tag "modules_local"
+    tag "blast_format"
+
+    def rows = { path -> new File(path.toString()).readLines().drop(1).collect { line -> line.split(',') as List } }
+    def species = { path -> rows(path).collectEntries { row -> [ row[2], row[3].toDouble() ] } }
+
+    test("best hit per ASV is mapped to a species") {
+        when {
+            workflow {
+                """
+                input[0] = '2614'
+                input[1] = file("\${projectDir}/tests/data/blast/seqtab.counts.csv")
+                input[2] = file("\${projectDir}/tests/data/blast/seqtab.blast.txt")
+                input[3] = file("\${projectDir}/assets/test_data/model_metadata.tsv")
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert workflow.success },
+                // 2614: ASV1 (500) -> E. coli, ASV3 (500) -> Salmonella
+                { assert species(workflow.out.abundances[0]) == [ 'Escherichia coli': 0.5d, 'Salmonella enterica': 0.5d ] },
+                { assert new File(workflow.out.detailed[0].toString()).readLines().size() == 3 }   // header + 2 ASVs of this sample
+            )
+        }
+    }
+
+    test("tied best hits split the ASV counts equally; unmapped hits are left out") {
+        when {
+            workflow {
+                """
+                input[0] = 'ASV_SAMPLE1'
+                input[1] = file("\${projectDir}/tests/data/blast/seqtab.counts.csv")
+                input[2] = file("\${projectDir}/tests/data/blast/seqtab.blast_edge.txt")
+                input[3] = file("\${projectDir}/assets/test_data/model_metadata.tsv")
+                """
+            }
+        }
+        then {
+            def result = species(workflow.out.abundances[0])
+            assertAll(
+                { assert workflow.success },
+                // ASV1 (600) ties E. coli / Salmonella -> 300 each, ASV2 (100) -> E. coli, ASV3 (300) has no mapped genome
+                { assert result.keySet() == [ 'Escherichia coli', 'Salmonella enterica' ] as Set },
+                { assert Math.abs(result['Escherichia coli'] - 400 / 700d) < 1e-6 },
+                { assert Math.abs(result['Salmonella enterica'] - 300 / 700d) < 1e-6 },
+                { assert Math.abs(result.values().sum() - 1d) < 1e-6 }
+            )
+        }
+    }
+
+    test("no BLAST hits at all gives an empty abundance table") {
+        when {
+            workflow {
+                """
+                input[0] = '2614'
+                input[1] = file("\${projectDir}/tests/data/blast/seqtab.counts.csv")
+                input[2] = file("\${projectDir}/tests/data/blast/empty.blast.txt")
+                input[3] = file("\${projectDir}/assets/test_data/model_metadata.tsv")
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert new File(workflow.out.abundances[0].toString()).readLines() == [ 'placeholder,sample_id,species,abundance' ] }
+            )
+        }
+    }
+}

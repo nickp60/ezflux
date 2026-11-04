@@ -4,29 +4,188 @@ nextflow_pipeline {
     script "../main.nf"
     tag "pipeline"
 
-    test("-profile test") {
+    // Samplesheet paths are resolved against the launch directory, so copy the test sheets into
+    // the test output dir with absolute paths.
+    def absoluteSheet = { String projectDir, String outputDir, String name ->
+        def dst = new File("${outputDir}/${name}")
+        dst.parentFile.mkdirs()
+        dst.text = new File("${projectDir}/assets/test_data/${name}").text
+            .replace('assets/test_data/', "${projectDir}/assets/test_data/")
+        return dst.toString()
+    }
+
+    test("-profile test_local - wide ASV table (sample ids from the table) on two diets") {
 
         when {
             params {
-                outdir = "$outputDir"
+                outdir   = "$outputDir"
+                input    = null
+                seqtab_input = "$projectDir/assets/test_data/seqtab.csv"
+                media    = absoluteSheet("$projectDir", "$outputDir", 'media.csv')
+                micom_db = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+                blast_db = "$projectDir/assets/test_data/blast_db"
             }
         }
 
         then {
-            // stable_path: All files + folders in ${params.outdir}/ with a stable path (including file name)
-            def stable_path = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: ['pipeline_info/*.{html,json,txt}'])
-            // stable_content: All files in ${params.outdir}/ with stable content
-            def stable_content = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')
-            assert workflow.success
+            def rates = new File("$outputDir/merged/ezflux.growth_rates.csv").readLines()
             assertAll(
-                { assert snapshot(
-                    // pipeline versions.yml file for multiqc from which Nextflow version is removed because we test pipelines on multiple Nextflow versions
-                    removeNextflowVersion("$outputDir/pipeline_info/nf_core_ezflux_software_mqc_versions.yml"),
-                    // All stable path name, with a relative path
-                    stable_path,
-                    // All files with stable contents
-                    stable_content
-                ).match() }
+                { assert workflow.success },
+                // preprocessing: one taxonomy table per sample
+                { assert new File("$outputDir/preprocessing/taxonomy/ASV_SAMPLE1.taxonomy.csv").exists() },
+                { assert new File("$outputDir/preprocessing/annotation/2614.annotated_abundances.csv").text.contains('a,2614,Escherichia coli') },
+                // ONE blast search for the whole table; sample ids come from its first column
+                { assert new File("$outputDir/preprocessing/blast/seqtab.txt").size() > 0 },
+                { assert workflow.trace.succeeded().count { task -> task.name.contains('BLAST_BLASTN') } == 1 },
+                { assert workflow.trace.succeeded().count { task -> task.name.contains('BLAST_FORMAT') } == 2 },
+                // plots: static PNGs end up in the MultiQC data, interactive ones are published
+                { assert new File("$outputDir/merged/ezflux.growth_rates.html").exists() },
+                { assert new File("$outputDir/merged/ezflux.found_fraction.csv").readLines().size() == 3 },
+                { assert ['found_fraction', 'growth_rates', 'import_niche', 'export_niche'].every { name -> new File("$outputDir/merged/${name}_mqc.png").size() > 1000 } },
+                { assert new File("$outputDir/preprocessing/taxonomy/2614.taxonomy.csv").exists() },
+                // growth: sample 1 gets the global diet, sample 2 gets the global and its own diet
+                { assert new File("$outputDir/growth/ASV_SAMPLE1__diet_a.zip").exists() },
+                { assert new File("$outputDir/growth/2614__diet_a.zip").exists() },
+                { assert new File("$outputDir/growth/2614__diet_b.zip").exists() },
+                { assert !new File("$outputDir/growth/ASV_SAMPLE1__diet_b.zip").exists() },
+                // merging
+                { assert new File("$outputDir/merged/ezflux.growth.zip").exists() },
+                { assert new File("$outputDir/merged/ezflux.exchanges.csv").size() > 0 },
+                { assert new File("$outputDir/merged/ezflux.import_niche.html").text.contains('<html') },
+                { assert new File("$outputDir/merged/ezflux.export_niche.html").text.contains('<html') },
+                { assert new File("$outputDir/merged/ezflux.production_rates.csv").size() > 0 },
+                { assert new File("$outputDir/merged/ezflux.consumption_rates.csv").size() > 0 },
+                { assert rates.drop(1).collect { it.split(',')[-1] }.unique().size() == 3 },
+                { assert new File("$outputDir/pipeline_info/nf_core_ezflux_software_mqc_versions.yml").text.contains('MICOM_GROW') }
+            )
+        }
+    }
+
+    test("-stub - reads route: runs of one sample are concatenated, then sylph") {
+
+        options "-stub"
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                input          = absoluteSheet("$projectDir", "$outputDir", 'samplesheet_reads.csv')
+                seqtab_input = null
+                media          = absoluteSheet("$projectDir", "$outputDir", 'media_reads.csv')
+                micom_db       = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+                blast_db       = "$projectDir/assets/test_data/blast_db"
+                sylph_db       = "$projectDir/assets/test_data/test.syldb"
+            }
+        }
+
+        then {
+            def tasks = workflow.trace.succeeded().collect { task -> task.name }
+            def count = { String name -> tasks.count { task -> task.contains(name) } }
+            assertAll(
+                { assert workflow.success },
+                // sample 2612 has two runs -> one CAT_FASTQ; the single-run sample is not concatenated
+                { assert count('CAT_FASTQ') == 1 },
+                { assert count('SYLPH_PROFILE') == 2 },
+                { assert count('SYLPH_ANNOTATE') == 2 },
+                { assert count('ASV_TOFASTA') == 0 },
+                { assert count('BLAST_BLASTN') == 0 },
+                { assert count('MICOM_TAXONOMY') == 2 },
+                { assert count('MICOM_MERGE') == 1 }
+            )
+        }
+    }
+
+    test("-stub - funcprofiler samplesheet (integer ids, run_accession, extra columns), default medium") {
+
+        tag "network"
+        options "-stub"
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                input          = 'https://raw.githubusercontent.com/nf-core/test-datasets/refs/heads/funcprofiler/samplesheets/test_full.csv'
+                seqtab_input = null
+                media          = null
+                medium         = "$projectDir/assets/test_data/diet_a.qza"
+                micom_db       = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+                sylph_db       = "$projectDir/assets/test_data/test.syldb"
+                blast_db       = null
+            }
+        }
+
+        then {
+            def tasks = workflow.trace.succeeded().collect { task -> task.name }
+            assertAll(
+                { assert workflow.success },
+                { assert tasks.count { task -> task.contains('CAT_FASTQ') } == 1 },       // 2612 has two runs
+                { assert tasks.count { task -> task.contains('SYLPH_PROFILE') } == 2 },   // 2612 and 2613
+                { assert new File("$outputDir/growth/2612__default.zip").exists() },
+                { assert new File("$outputDir/growth/2613__default.zip").exists() }
+            )
+        }
+    }
+
+    test("input validation - --input and --seqtab_input are mutually exclusive") {
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                input          = absoluteSheet("$projectDir", "$outputDir", 'samplesheet_reads.csv')
+                seqtab_input   = "$projectDir/assets/test_data/seqtab.csv"
+                media          = absoluteSheet("$projectDir", "$outputDir", 'media.csv')
+                micom_db       = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+                blast_db       = "$projectDir/assets/test_data/blast_db"
+                sylph_db       = "$projectDir/assets/test_data/test.syldb"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join('\n').toLowerCase().contains('--seqtab_input') }
+            )
+        }
+    }
+
+    test("input validation - one of --input / --seqtab_input is required") {
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                input          = null
+                seqtab_input   = null
+                media          = null
+                micom_db       = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("samplesheet validation - media names a sample that is not in the input") {
+
+        when {
+            params {
+                outdir         = "$outputDir"
+                input          = absoluteSheet("$projectDir", "$outputDir", 'samplesheet_reads.csv')
+                seqtab_input = null
+                media          = absoluteSheet("$projectDir", "$outputDir", 'media.csv')   // lists 2614, which is not a reads sample
+                micom_db       = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata = "$projectDir/assets/test_data/model_metadata.tsv"
+                sylph_db       = "$projectDir/assets/test_data/test.syldb"
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join('\n').contains('2614') }
             )
         }
     }

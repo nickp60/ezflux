@@ -1,0 +1,11 @@
+---
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/environment-schema.json
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # Pin to the versions you validated (nf-core lint requires exact pins).
+  # micom's plots need umap-learn, scikit-learn and bokeh; they come with micom on conda-forge.
+  - conda-forge::micom
+  - conda-forge::pandas
+  - conda-forge::matplotlib

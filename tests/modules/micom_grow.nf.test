@@ -1,0 +1,74 @@
+nextflow_workflow {
+
+    name "Test MICOM_GROW"
+    script "./wrappers.nf"
+    workflow "TEST_MICOM_GROW"
+    tag "modules_local"
+    tag "micom_grow"
+
+    // growth_rates.csv inside the zip written by save_results
+    def growthRates = { zipPath ->
+        def zip = new java.util.zip.ZipFile(zipPath.toString())
+        try {
+            def lines = zip.getInputStream(zip.getEntry("growth_rates.csv")).text.readLines()
+            def header = lines[0].split(',') as List
+            return lines.drop(1).collect { line -> [header, line.split(',') as List].transpose().collectEntries() }
+        } finally {
+            zip.close()
+        }
+    }
+
+    def inputs = """
+        input[0] = 'sample_1'
+        input[1] = 'diet'
+        input[2] = file("\${projectDir}/tests/data/grow/taxonomy.csv")
+        input[3] = file("\${projectDir}/tests/data/grow/medium.qza")
+        input[4] = file("\${projectDir}/tests/data/grow/strain_models.qza")
+        """
+
+    test("one sample on one diet; results are labelled <sample>__<medium>") {
+        when {
+            workflow { inputs }
+        }
+        then {
+            def rows = growthRates(workflow.out.zip[0])
+            assertAll(
+                { assert workflow.success },
+                { assert rows.size() == 4 },
+                { assert rows.every { row -> row.sample_id == 'sample_1__diet' } },
+                { assert rows.every { row -> row.growth_rate.toDouble() > 0 } },
+                { assert new File(workflow.out.build_manifest[0].toString()).readLines()[0].contains('found_abundance_fraction') }
+            )
+        }
+    }
+
+    test("fails (after the retry) when the sample cannot be solved") {
+        // an unknown solver makes every attempt fail
+        when {
+            params {
+                micom_solver = 'not_a_solver'
+            }
+            workflow { inputs }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("a taxonomy with several samples is rejected") {
+        when {
+            workflow {
+                """
+                input[0] = 'sample_1'
+                input[1] = 'diet'
+                input[2] = file("\${projectDir}/tests/data/grow/taxonomy_two_samples.csv")
+                input[3] = file("\${projectDir}/tests/data/grow/medium.qza")
+                input[4] = file("\${projectDir}/tests/data/grow/strain_models.qza")
+                """
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+}

@@ -2,32 +2,61 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "https://raw.githubusercontent.com/nf-core/ezflux/master/assets/schema_input.json",
     "title": "nf-core/ezflux pipeline - params.input schema",
-    "description": "Schema for the file provided with params.input",
+    "description": "Schema for the samplesheet provided with params.input. One row per sample (or per sequencing run of a sample) with FASTQ reads. ASV tables are given with --seqtab_input instead.",
     "type": "array",
+    "uniqueEntries": [
+        "sample",
+        "run_accession"
+    ],
     "items": {
         "type": "object",
         "properties": {
             "sample": {
-                "type": "string",
+                "type": [
+                    "string",
+                    "integer"
+                ],
                 "pattern": "^\\S+$",
                 "errorMessage": "Sample name must be provided and cannot contain spaces",
-                "meta": ["id"]
+                "meta": [
+                    "id"
+                ]
+            },
+            "run_accession": {
+                "type": [
+                    "string",
+                    "integer"
+                ],
+                "pattern": "^\\S+$",
+                "errorMessage": "run_accession cannot contain spaces",
+                "meta": [
+                    "run_accession"
+                ]
             },
             "fastq_1": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 1 must be provided, cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "errorMessage": "FastQ file 1 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
             },
             "fastq_2": {
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
-                "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+                "errorMessage": "FastQ file 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
             }
         },
-        "required": ["sample", "fastq_1"]
+        "required": [
+            "sample",
+            "fastq_1"
+        ],
+        "dependentRequired": {
+            "fastq_2": [
+                "fastq_1"
+            ]
+        },
+        "errorMessage": "Each row needs sample and fastq_1 (fastq_2 is optional for single-end data)"
     }
 }

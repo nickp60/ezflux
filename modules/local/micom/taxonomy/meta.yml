@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "micom_taxonomy"
+description: >-
+  Matches the species of one sample to the species-level micom model database and writes the micom taxonomy table.
+keywords:
+  - micom
+  - taxonomy
+  - annotation
+tools:
+  - "micom":
+      description: "Microbial community metabolic modelling with cooperative trade-off FBA"
+      homepage: "https://micom-dev.github.io/micom/"
+      documentation: "https://micom-dev.github.io/micom/"
+      licence: ["Apache-2.0"]
+      identifier: ""
+input:
+  - record(id, abundances):
+      type: record
+      description: id = sample id; abundances = CSV with columns placeholder, sample_id, species, abundance
+  - model_db:
+      type: file
+      description: species-level micom model database (.qza or .zip)
+output:
+  - record(id, taxonomy, report):
+      type: record
+      description: taxonomy = micom Batch taxonomy CSV; report = TSV with the number of models found per species
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - micom:
+          type: string
+          description: The name of the tool
+      - python3 -c 'import micom; print(micom.__version__)':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

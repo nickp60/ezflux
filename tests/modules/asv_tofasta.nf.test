@@ -1,0 +1,58 @@
+nextflow_workflow {
+
+    name "Test ASV_TOFASTA"
+    script "./wrappers.nf"
+    workflow "TEST_ASV_TOFASTA"
+    tag "modules_local"
+    tag "asv_tofasta"
+
+    test("wide table (samples as rows) -> FASTA and long counts") {
+        when {
+            workflow {
+                """
+                input[0] = file("\${projectDir}/assets/test_data/seqtab.csv")
+                """
+            }
+        }
+        then {
+            def fasta = new File(workflow.out.fasta[0].toString()).readLines()
+            def counts = new File(workflow.out.counts[0].toString()).readLines()
+            assertAll(
+                { assert workflow.success },
+                { assert fasta.count { line -> line.startsWith('>') } == 3 },
+                { assert fasta[0] == '>ASV1' },
+                { assert counts[0] == 'sample_id,asv,count' },
+                // numeric sample ids stay text; zero counts are dropped (2614 has no ASV2)
+                { assert counts.contains('2614,ASV1,500') },
+                { assert !counts.any { line -> line.startsWith('2614,ASV2') } },
+                { assert counts.size() == 6 }
+            )
+        }
+    }
+
+    test("a transposed table (ASVs as rows) is rejected") {
+        when {
+            workflow {
+                """
+                input[0] = file("\${projectDir}/tests/data/seqtab_transposed.csv")
+                """
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("duplicated sample ids are rejected") {
+        when {
+            workflow {
+                """
+                input[0] = file("\${projectDir}/tests/data/seqtab_duplicated.csv")
+                """
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+}

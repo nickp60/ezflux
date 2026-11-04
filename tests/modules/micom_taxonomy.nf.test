@@ -1,0 +1,34 @@
+nextflow_workflow {
+
+    name "Test MICOM_TAXONOMY"
+    script "./wrappers.nf"
+    workflow "TEST_MICOM_TAXONOMY"
+    tag "modules_local"
+    tag "micom_taxonomy"
+
+    test("species are matched to the database, unmatched abundance is renormalised away") {
+        when {
+            workflow {
+                """
+                input[0] = '2612'
+                input[1] = file("\${projectDir}/tests/data/taxonomy/abundances.csv")
+                input[2] = file("\${projectDir}/assets/test_data/micom_db.qza")
+                """
+            }
+        }
+        then {
+            def lines = new File(workflow.out.taxonomy[0].toString()).readLines()
+            def header = lines[0].split(',') as List
+            def rows = lines.drop(1).collect { line -> line.split(',') as List }
+            assertAll(
+                { assert workflow.success },
+                { assert header.containsAll(['kingdom', 'species', 'id', 'abundance', 'sample_id']) },
+                { assert rows.size() == 2 },
+                { assert rows.collect { row -> row[header.indexOf('id')] }.sort() == ['Escherichia_coli', 'Salmonella_enterica'] },
+                { assert rows.collect { row -> row[header.indexOf('abundance')].toDouble() }.sum() > 0.999 },
+                { assert rows.every { row -> row[header.indexOf('sample_id')] == '2612' } },
+                { assert new File(workflow.out.report[0].toString()).text.contains('Not in the database') }
+            )
+        }
+    }
+}

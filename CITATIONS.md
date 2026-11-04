@@ -10,7 +10,31 @@
 
 ## Pipeline tools
 
+- [MICOM](https://pubmed.ncbi.nlm.nih.gov/31964767/)
 
+  > Diener C, Gibbons SM, Resendis-Antonio O. MICOM: Metagenome-Scale Modeling To Infer Metabolic Interactions in the Gut Microbiota. mSystems. 2020 Jan 21;5(1):e00606-19. doi: 10.1128/mSystems.00606-19.
+
+- [sylph](https://doi.org/10.1038/s41587-024-02412-y)
+
+  > Shaw J, Yu YW. Rapid species-level metagenome profiling and containment estimation with sylph. Nat Biotechnol. 2024. doi: 10.1038/s41587-024-02412-y.
+
+- [BLAST+](https://doi.org/10.1186/1471-2105-10-421)
+
+  > Camacho C, Coulouris G, Avagyan V, et al. BLAST+: architecture and applications. BMC Bioinformatics. 2009;10:421. doi: 10.1186/1471-2105-10-421.
+
+- [R](https://www.R-project.org/) and the [tidyverse](https://doi.org/10.21105/joss.01686)
+
+  > Wickham H, et al. Welcome to the tidyverse. Journal of Open Source Software. 2019;4(43):1686. doi: 10.21105/joss.01686.
+
+- [AGORA2](https://doi.org/10.1038/s41587-023-01628-0) (model database, when used)
+
+  > Heinken A, et al. Genome-scale metabolic reconstruction of 7,302 human microorganisms for personalized medicine. Nat Biotechnol. 2023;41:1320-1331. doi: 10.1038/s41587-023-01628-0.
+
+- [UMAP](https://arxiv.org/abs/1802.03426)
+
+  > McInnes L, Healy J, Melville J. UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction. arXiv:1802.03426. 2018.
+
+- [Gurobi Optimizer](https://www.gurobi.com/) (default solver, commercial license required)
 
 - [MultiQC](https://pubmed.ncbi.nlm.nih.gov/27312411/)
 

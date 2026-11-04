@@ -30,7 +30,10 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_ezfl
 workflow NFCORE_EZFLUX {
 
     take:
-    samplesheet // channel: samplesheet read in from --input
+    reads       // channel: [ id, single_end, n_runs, fastqs ] per sample (--input)
+    asv_samples // channel: [ id ] per sample (--seqtab_input)
+    seqtab      // channel: the ASV table (--seqtab_input)
+    diets       // channel: [ id, medium, diet ] per sample and diet (--media)
 
     main:
 
@@ -38,7 +41,14 @@ workflow NFCORE_EZFLUX {
     // WORKFLOW: Run pipeline
     //
     EZFLUX (
-        samplesheet,
+        reads,
+        asv_samples,
+        seqtab,
+        diets,
+        params.micom_db,
+        params.sylph_db,
+        params.model_metadata,
+        params.blast_db,
         params.multiqc_config,
         params.multiqc_logo,
         params.multiqc_methods_description,
@@ -66,6 +76,12 @@ workflow {
         args,
         params.outdir,
         params.input,
+        params.seqtab_input,
+        params.media,
+        params.medium,
+        params.sylph_db,
+        params.model_metadata,
+        params.blast_db,
         params.help,
         params.help_full,
         params.show_hidden
@@ -75,7 +91,10 @@ workflow {
     // WORKFLOW: Run main workflow
     //
     NFCORE_EZFLUX (
-        PIPELINE_INITIALISATION.out.samplesheet
+        PIPELINE_INITIALISATION.out.reads,
+        PIPELINE_INITIALISATION.out.asv_samples,
+        PIPELINE_INITIALISATION.out.seqtab,
+        PIPELINE_INITIALISATION.out.diets
     )
     //
     // SUBWORKFLOW: Run completion tasks

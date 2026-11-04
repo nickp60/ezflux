@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "micom_merge"
+description: >-
+  Merges the growth results of all samples and media; exports the tables and draws the growth rate, found fraction and import/export niche plots.
+keywords:
+  - micom
+  - metabolic modelling
+  - visualisation
+tools:
+  - "micom":
+      description: "Microbial community metabolic modelling with cooperative trade-off FBA"
+      homepage: "https://micom-dev.github.io/micom/"
+      documentation: "https://micom-dev.github.io/micom/"
+      licence: ["Apache-2.0"]
+      identifier: ""
+input:
+  - growth_zips:
+      type: list of files
+      description: one GrowthResults zip per sample and medium (sample_id = <sample>__<medium>)
+  - build_manifests:
+      type: list of files
+      description: the matching micom build manifests
+output:
+  - record(growth, exchanges, growth_rates, production_rates, consumption_rates, found_fraction, import_niche, export_niche, growth_rates_html, plots):
+      type: record
+      description: merged results zip and CSV tables, interactive HTML plots, and static *_mqc.png plots for MultiQC
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - micom:
+          type: string
+          description: The name of the tool
+      - python3 -c 'import micom; print(micom.__version__)':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"

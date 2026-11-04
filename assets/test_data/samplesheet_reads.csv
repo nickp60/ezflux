@@ -1,0 +1,4 @@
+sample,run_accession,fastq_1,fastq_2
+2612,RUN_A,assets/test_data/sample3_R1.fastq.gz,assets/test_data/sample3_R2.fastq.gz
+2612,RUN_B,assets/test_data/sample3_R1.fastq.gz,assets/test_data/sample3_R2.fastq.gz
+READS_SAMPLE3,,assets/test_data/sample3_R1.fastq.gz,assets/test_data/sample3_R2.fastq.gz

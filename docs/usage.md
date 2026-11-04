@@ -6,51 +6,152 @@
 
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+nf-core/ezflux predicts which metabolites the members of a gut microbiome take up and secrete. It profiles
+your samples, builds a [MICOM](https://micom-dev.github.io/micom/) community model per sample, simulates growth
+on one or more diets and merges everything into exchange tables and niche plots. It runs in three phases:
+
+1. **Preprocessing**: samples with reads (runs of one sample are concatenated with `CAT_FASTQ`) are profiled with
+   [sylph](https://github.com/bluenote-1577/sylph) (`SYLPH_PROFILE`) and re-annotated with the model metadata
+   (`SYLPH_ANNOTATE`). ASV tables are written to FASTA (`ASV_TOFASTA`), searched against a 16S database with
+   [blastn](https://blast.ncbi.nlm.nih.gov/) (`BLAST_BLASTN`, one search for the whole table) and the best hits are formatted
+   and mapped to species per sample (`BLAST_FORMAT`). Both routes produce `annotated_abundances.csv`, which `MICOM_TAXONOMY` matches to the models in your
+   MICOM database and writes as a MICOM taxonomy table.
+2. **Growth**: `MICOM_GROW` builds each community and simulates growth with cooperative trade-off FBA, once for every
+   sample and diet that applies to it.
+3. **Merging**: `MICOM_MERGE` combines all growth results, exports the exchanges and draws the import/export niche plots.
+
+You need EITHER a reads sample sheet (`--input`) OR a wide ASV table (`--seqtab_input`), a MICOM model database (`--micom_db`) and the metadata that ships with it (`--model_metadata`). Diets come from a diet sheet (`--media`) or, without one, from `--medium`. Reads need `--sylph_db`, `--seqtab_input` needs `--blast_db`.
 
 ## Samplesheet input
-
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
 
 ```bash
 --input '[path to samplesheet file]'
 ```
 
-### Multiple runs of the same sample
-
-The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
+A CSV with one row per sample (or per sequencing run of a sample):
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+sample,run_accession,fastq_1,fastq_2
+2612,ERR5766176,/data/2612_run1_1.fastq.gz,/data/2612_run1_2.fastq.gz
+2612,ERR5766176_B,/data/2612_run2_1.fastq.gz,/data/2612_run2_2.fastq.gz
+2613,,/data/2613_1.fastq.gz,
 ```
 
-### Full samplesheet
+| Column          | Description                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| `sample`        | Sample name or number, no spaces. Numbers are kept as text (`007` stays `007`).                              |
+| `run_accession` | Optional. Rows with the same `sample` and different `run_accession` are concatenated with `cat/fastq`.      |
+| `fastq_1`       | Optional. Gzipped FastQ. Leave `fastq_2` empty for single-end data.                                          |
+| `fastq_2`       | Optional. Gzipped FastQ for the second read. Needs `fastq_1`.                                                |
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
+Every row needs `fastq_1`; all runs of a sample must be all single-end or all paired-end. Several rows for one sample need distinct `run_accession` values. Other columns (for
+example `instrument_platform` and `fasta` in nf-core/taxprofiler sheets) are ignored. Reads need `--sylph_db`; `--seqtab_input` needs
+`--blast_db`; both need `--model_metadata`.
 
-A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
+> Relative paths in a samplesheet are resolved against the directory you launch Nextflow from. Use absolute paths or URLs.
+### Sylph Database
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+Instructions for building the sylph database can be found  [here](https://github.com/vdblab/resources/tree/main/workflow/sylphflux). In short, genomes are downloaded when available, and short reads were assembled with skesa. the genomes/assemblies were then sketched into a database with Sylph. The model metadata file links the file path to the taxonomy.
+
+### Model metadata
+
+`--model_metadata` is the file distributed with the model database. It has no header and two columns, `Genome_file` and
+`clade_name` (a GTDB-style lineage ending in `s__<species>`), separated by tabs:
+
+```tsv
+/db/genomes/GCF_000005845.2_genomic.fna.gz	d__Bacteria;p__Pseudomonadota;...;g__Escherichia;s__Escherichia coli
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+For reads, the genome sylph reports is looked up by its file name. For ASVs, the BLAST subject accession (`saccver`) is looked
+up by the file name without the `.fna`/`.fa`/`.fasta` (and `.gz`) suffix, tolerating a different version suffix. Entries that
+are not `d__Bacteria` are dropped.
 
-An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+### Annotating reads
+
+The raw `sylph profile` table is joined to the model metadata, restricted to bacteria, summed per species and renormalised to
+relative abundances (`<sample>.annotated_abundances.csv` with columns `placeholder,sample_id,species,abundance`).
+`MICOM_TAXONOMY` then matches these species to the models of `--micom_db` (case, spaces and GTDB `_A` suffixes are ignored; on
+a strain-level database a species' abundance is split over its models; the database's summary rank must be species, as in AGORA) and renormalises over the matched species. Species
+without a model are dropped and listed in `preprocessing/taxonomy/<sample>.annotation.tsv`.
+
+### ASV table and 16S annotation
+
+```bash
+--seqtab_input '[path to ASV sequence table]'
+```
+
+The standard (dada2-style) **wide** table: one row per sample, sample ids in the first column, one column per ASV named by its
+sequence, counts as values. CSV or TSV (detected from the header):
+
+```csv title="seqtab.csv"
+"","GCTAAAGACAATTACATAACATACACTTCAGCACG","TCGGAATCACTGGGCGTAAAGCGCACGCAGGCGG"
+"sample1",600,300
+"sample2",500,0
+```
+
+The **sample ids are read from the first column** of the table, so no samplesheet is needed (and `--input` must not be given).
+Ids must be unique and contain no spaces; numeric ids are kept as text. A transposed table (sequences as rows) is detected
+and rejected with an error.
+
+
+All ASVs are written to one FASTA (`ASV1`, `ASV2`, ... in column order; zero counts are dropped from the long count table)
+and searched once with `blastn -max_target_seqs 500 -outfmt "6 qseqid staxids saccver stitle qlen length nident pident
+bitscore evalue score"` against the database in `--blast_db` (a directory holding the `makeblastdb` output). Per sample, the
+hit(s) with the highest bitscore are kept for each of its ASVs (`<sample>.blast_detailed.tsv`). The ASV counts are then
+converted to species abundances: each ASV's count goes to the species of its best hits, split equally when several species
+tie, and the species are normalised to relative abundances. Hits whose accession is not in `--model_metadata` are lost; the
+share is printed in the task log.
+
+### BLAST DB
+Follow the instructions [here](https://github.com/nickp60/micom-snakemake/blob/main/workflow/rules/format16S.smk) for creating the blast database from the model genomes.
+## Media input
+
+```bash
+--media '[path to media sheet]'
+```
+
+Optional. A CSV with one row per diet. Without `--media`, every sample is grown on the diet in `--medium` (a q2-micom `.qza`
+file or URL; by default the western diet, `https://zenodo.org/record/3755182/files/western_diet_gut.qza?download=1`).
+
+A CSV with one row per diet:
+
+```csv title="media.csv"
+medium_name,medium_path,sample_id
+western_diet,/data/western_diet_gut_agora.qza,
+high_fiber,/data/high_fiber_gut_agora.qza,GUT_ASV
+```
+
+| Column        | Description                                                                                       |
+| ------------- | ------------------------------------------------------------------------------------------------- |
+| `medium_name` | Name of the diet, no spaces. Used in output file names.                                           |
+| `medium_path` | A q2-micom medium artifact (`.qza`).                                                              |
+| `sample_id`   | Optional. Restricts the diet to this sample. Empty means the diet applies to every sample.        |
+
+Every sample must end up with at least one diet, either its own or one without a `sample_id`, and every `sample_id` here must exist
+in `--input`; the pipeline stops with an error otherwise. A sample on several diets is simulated once per diet, and
+`<sample>__<medium>` becomes the sample id in the merged results.
+
+## MICOM database and solver
+
+`--micom_db` is a MICOM model database (`.qza` or `.zip`), for example AGORA. The taxonomy tables are matched against its
+taxonomy up to its summary rank.
+
+MICOM needs a quadratic-programming solver. The default `--micom_solver gurobi` needs a **Gurobi license visible to the
+compute nodes** (for example `module load gurobi`, `GRB_LICENSE_FILE`, or a token server). Without it Gurobi falls back to a
+restricted license that is limited to about 2000 variables and fails on real models with "Model too large for size-limited
+license". `--micom_solver cplex` and `--micom_solver hybrid` (open source, much slower) are alternatives.
+
+### Retries and numerical trouble
+
+`MICOM_GROW` runs one sample on one diet. It fails if the sample cannot be solved, and Nextflow retries it once. The retry sets Gurobi's `NumericFocus` to
+`--micom_numeric_focus_retry` (default 3, slower but more robust); the first attempt uses MICOM's default (2). Set
+`--micom_numeric_focus` to use a different value from the start. Related options:
+
+- `--micom_coupling false` switches off MICOM's resource coupling constraints, which are the most common cause of numerical
+  trouble in large communities and are much cheaper to solve without.
+- `--micom_presolve true|false|auto` overrides the solver presolve (MICOM's default is on).
+
+MICOM only sets these Gurobi options internally, so they are applied by overriding its solver setup inside the task.
 
 ## Running the pipeline
 

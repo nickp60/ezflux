@@ -3,7 +3,6 @@ description: "Suggested text and references to use when describing pipeline usag
 section_name: "nf-core/ezflux Methods Description"
 section_href: "https://github.com/nf-core/ezflux"
 plot_type: "html"
-## TODO nf-core: Update the HTML below to your preferred methods description, e.g. add publication citation for this pipeline
 ## You inject any metadata in the Nextflow '${workflow}' object
 data: |
   <h4>Methods</h4>
@@ -13,6 +12,9 @@ data: |
   <p>${tool_citations}</p>
   <h4>References</h4>
   <ul>
+    <li>Diener, C., Gibbons, S. M., & Resendis-Antonio, O. (2020). MICOM: Metagenome-scale modeling to infer metabolic interactions in the gut microbiota. mSystems, 5(1), e00606-19. doi: <a href="https://doi.org/10.1128/mSystems.00606-19">10.1128/mSystems.00606-19</a></li>
+    <li>Camacho, C., Coulouris, G., Avagyan, V., et al. (2009). BLAST+: architecture and applications. BMC Bioinformatics, 10, 421. doi: <a href="https://doi.org/10.1186/1471-2105-10-421">10.1186/1471-2105-10-421</a></li>
+    <li>Shaw, J., & Yu, Y. W. (2024). Rapid species-level metagenome profiling and containment estimation with sylph. Nature Biotechnology. doi: <a href="https://doi.org/10.1038/s41587-024-02412-y">10.1038/s41587-024-02412-y</a></li>
     <li>Di Tommaso, P., Chatzou, M., Floden, E. W., Barja, P. P., Palumbo, E., & Notredame, C. (2017). Nextflow enables reproducible computational workflows. Nature Biotechnology, 35(4), 316-319. doi: <a href="https://doi.org/10.1038/nbt.3820">10.1038/nbt.3820</a></li>
     <li>Ewels, P. A., Peltzer, A., Fillinger, S., Patel, H., Alneberg, J., Wilm, A., Garcia, M. U., Di Tommaso, P., & Nahnsen, S. (2020). The nf-core framework for community-curated bioinformatics pipelines. Nature Biotechnology, 38(3), 276-278. doi: <a href="https://doi.org/10.1038/s41587-020-0439-x">10.1038/s41587-020-0439-x</a></li>
     <li>Grüning, B., Dale, R., Sjödin, A., Chapman, B. A., Rowe, J., Tomkins-Tinch, C. H., Valieris, R., Köster, J., & Bioconda Team. (2018). Bioconda: sustainable and comprehensive software distribution for the life sciences. Nature Methods, 15(7), 475–476. doi: <a href="https://doi.org/10.1038/s41592-018-0046-7">10.1038/s41592-018-0046-7</a></li>

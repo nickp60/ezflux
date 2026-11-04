@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/nf-core/modules/master/modules/meta-schema.json
+# Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
+name: "micom_grow"
+description: >-
+  Grows the community of one sample on one medium with micom (cooperative trade-off FBA). Solver options come from task.ext.args (see conf/modules.config).
+keywords:
+  - micom
+  - metabolic modelling
+  - growth rates
+tools:
+  - "micom":
+      description: "Microbial community metabolic modelling with cooperative trade-off FBA"
+      homepage: "https://micom-dev.github.io/micom/"
+      documentation: "https://micom-dev.github.io/micom/"
+      licence: ["Apache-2.0"]
+      identifier: ""
+input:
+  - record(id, medium, taxonomy, diet):
+      type: record
+      description: id and medium name (strings); taxonomy = micom taxonomy CSV of ONE sample; diet = q2-micom medium (.qza)
+  - model_db:
+      type: file
+      description: micom model database, e.g. AGORA (.qza)
+output:
+  - record(id, medium, zip, build_manifest):
+      type: record
+      description: zip = GrowthResults (sample_id relabelled <id>__<medium>); build_manifest = found fractions of the community
+topics:
+  versions:
+    - - ${task.process}:
+          type: string
+          description: The name of the process
+      - micom:
+          type: string
+          description: The name of the tool
+      - python3 -c 'import micom; print(micom.__version__)':
+          type: eval
+          description: The expression to obtain the version of the tool
+authors:
+  - "@watersn"
+maintainers:
+  - "@watersn"
