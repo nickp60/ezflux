@@ -17,7 +17,7 @@ tools:
 input:
   - record(id, medium, taxonomy, diet):
       type: record
-      description: id and medium name (strings); taxonomy = micom taxonomy CSV of ONE sample; diet = q2-micom medium (.qza)
+      description: id and medium name (strings); taxonomy = micom taxonomy CSV of ONE sample; diet = medium, either a q2-micom artifact (.qza) or a CSV/TSV with the columns reaction and flux
   - model_db:
       type: file
       description: micom model database, e.g. AGORA (.qza)

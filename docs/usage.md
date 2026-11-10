@@ -113,7 +113,7 @@ Follow the instructions [here](https://github.com/nickp60/micom-snakemake/blob/m
 Optional. A CSV with one row per diet. Without `--media`, every sample is grown on the diet in `--medium` (a q2-micom `.qza`
 file or URL; by default the western diet, `https://zenodo.org/record/3755182/files/western_diet_gut.qza?download=1`).
 
-A CSV with one row per diet:
+Optional. A CSV with one row per diet. Without `--media`, every sample is grown on the diet in `--medium` (a q2-micom `.qza` or a [CSV/TSV medium](#medium-formats)
 
 ```csv title="media.csv"
 medium_name,medium_path,sample_id

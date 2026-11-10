@@ -16,8 +16,8 @@
                 "type": "string",
                 "format": "file-path",
                 "exists": true,
-                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.qza(\\?\\S*)?$",
-                "errorMessage": "medium_path must point to a q2-micom medium artifact (.qza)"
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.(qza|csv|tsv)(\\?\\S*)?$",
+                "errorMessage": "medium_path must point to a q2-micom medium (.qza) or a CSV/TSV with the columns reaction and flux"
             },
             "sample_id": {
                 "type": [

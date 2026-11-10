@@ -45,15 +45,15 @@
                     "mimetype": "text/csv",
                     "pattern": "^\\S+\\.csv$",
                     "description": "Optional path to a comma-separated samplesheet of diets with columns medium_name, medium_path, sample_id (optional).",
-                    "help_text": "medium_path must be a q2-micom medium artifact (.qza). A row without sample_id applies to every sample. Rows with a sample_id apply to that sample only; every sample must end up with at least one diet. Without --media every sample is grown on --medium.",
+                    "help_text": "medium_path must be a q2-micom medium (.qza) or a CSV/TSV with the columns reaction and flux. A row without sample_id applies to every sample. Rows with a sample_id apply to that sample only; every sample must end up with at least one diet. Without --media every sample is grown on --medium.",
                     "fa_icon": "fas fa-utensils"
                 },
                 "medium": {
                     "type": "string",
                     "default": "https://zenodo.org/record/3755182/files/western_diet_gut.qza?download=1",
                     "format": "file-path",
-                    "pattern": "^\\S+\\.qza(\\?\\S*)?$",
-                    "description": "Medium (q2-micom .qza file or URL) used for every sample when --media is not given.",
+                    "pattern": "^\\S+\\.(qza|csv|tsv)(\\?\\S*)?$",
+                    "description": "Medium (q2-micom .qza, or CSV/TSV with columns reaction, flux; file or URL) used for every sample when --media is not given.",
                     "help_text": "Defaults to the western diet of Diener et al. on Zenodo.",
                     "fa_icon": "fas fa-hamburger"
                 },

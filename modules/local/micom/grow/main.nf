@@ -9,7 +9,7 @@ process MICOM_GROW {
     conda "${moduleDir}/environment.yml"
 
     input:
-    record(id: String, medium: String, taxonomy: Path, diet: Path)   // taxonomy CSV + q2-micom medium (.qza)
+    record(id: String, medium: String, taxonomy: Path, diet: Path)   // taxonomy CSV + medium (.qza, or CSV/TSV with reaction, flux)
     model_db: Path                                                   // micom model database, e.g. AGORA
 
     output:
