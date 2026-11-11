@@ -53,13 +53,13 @@ Check `annotation.tsv` to see how much of a sample could be modelled; unmatched 
 <details markdown="1">
 <summary>Output files</summary>
 
-- `merged/`
-  - `ezflux.growth.zip`: all growth results combined, loadable with `micom.batch.results.load_results`.
-  - `ezflux.growth_rates.csv`, `ezflux.exchanges.csv`: the merged tables. `sample_id` is always `<sample>__<medium>`, also with a single medium.
-  - `ezflux.production_rates.csv`, `ezflux.consumption_rates.csv`: metabolite production and consumption rates per sample.
-  - `ezflux.import_niche.html`, `ezflux.export_niche.html`: UMAP of taxa by the metabolites they import / export (interactive, micom's `plot_exchanges_per_taxon`).
-  - `ezflux.growth_rates.html`: growth rate of every taxon in every sample (interactive, micom's `plot_growth`).
-  - `ezflux.found_fraction.csv`: per sample, the number and the abundance share of taxa found in the model database (from micom's build manifest).
+- `merged/` (files are prefixed with `--name`, default `ezflux`; `--name project1` gives `project1.growth.zip`, ...)
+  - `<name>.growth.zip`: all growth results combined, loadable with `micom.batch.results.load_results`.
+  - `<name>.growth_rates.csv`, `<name>.exchanges.csv`: the merged tables. `sample_id` is always `<sample>__<medium>`, also with a single medium.
+  - `<name>.production_rates.csv`, `<name>.consumption_rates.csv`: metabolite production and consumption rates per sample.
+  - `<name>.import_niche.html`, `<name>.export_niche.html`: UMAP of taxa by the metabolites they import / export (interactive, micom's `plot_exchanges_per_taxon`).
+  - `<name>.growth_rates.html`: growth rate of every taxon in every sample (interactive, micom's `plot_growth`).
+  - `<name>.found_fraction.csv`: per sample, the number and the abundance share of taxa found in the model database (from micom's build manifest).
   - `growth_rates_mqc.png`, `import_niche_mqc.png`, `export_niche_mqc.png`, `found_fraction_mqc.png`: static versions of the plots, as shown in the MultiQC report.
 
 </details>

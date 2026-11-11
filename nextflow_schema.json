@@ -357,6 +357,14 @@
             "fa_icon": "fas fa-chart-scatter",
             "description": "Plots of the merged results.",
             "properties": {
+                "name": {
+                    "type": "string",
+                    "default": "ezflux",
+                    "pattern": "^[A-Za-z0-9_.-]+$",
+                    "errorMessage": "--name may only contain letters, digits, '.', '_' and '-'",
+                    "description": "Name of the project: prefix of the merged result files, e.g. --name project1 gives project1.growth.zip.",
+                    "fa_icon": "fas fa-tag"
+                },
                 "umap_n_neighbors": {
                     "type": [
                         "integer",
