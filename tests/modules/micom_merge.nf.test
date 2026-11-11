@@ -42,4 +42,66 @@ nextflow_workflow {
             )
         }
     }
+
+    test("results of different runs with the same file name are both merged") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    file("\${projectDir}/tests/data/merge/ASV_SAMPLE1__diet_a.zip"),
+                    file("\${projectDir}/tests/data/merge_samename/ASV_SAMPLE1__diet_a.zip")   // holds 2614__diet_a
+                )
+                input[1] = channel.of(file("\${projectDir}/tests/data/merge/2614__diet_a.build_manifest.csv"))
+                """
+            }
+        }
+        then {
+            def rates = new File(workflow.out.result[0].growth_rates.toString()).readLines().drop(1).collect { line -> line.split(',')[-1] }.unique().sort()
+            assertAll(
+                { assert workflow.success },
+                { assert rates == [ '2614__diet_a', 'ASV_SAMPLE1__diet_a' ] },
+                // a manifest for only one of the samples is fine
+                { assert new File(workflow.out.result[0].found_fraction.toString()).readLines().size() == 2 }
+            )
+        }
+    }
+
+    test("a merged results zip can be merged again with further results") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    file("\${projectDir}/tests/data/merge/run1.growth.zip"),
+                    file("\${projectDir}/tests/data/merge/2614__diet_a.zip")
+                )
+                input[1] = channel.of(file("\${projectDir}/tests/data/merge/run1.found_fraction.csv"))
+                """
+            }
+        }
+        then {
+            def rates = new File(workflow.out.result[0].growth_rates.toString()).readLines().drop(1).collect { line -> line.split(',')[-1] }.unique().sort()
+            assertAll(
+                { assert workflow.success },
+                { assert rates == [ '2614__diet_a', '2614__diet_b', 'ASV_SAMPLE1__diet_a' ] },
+                { assert new File(workflow.out.result[0].found_fraction.toString()).readLines().size() == 3 }
+            )
+        }
+    }
+
+    test("the same sample id in two zips is rejected") {
+        when {
+            workflow {
+                """
+                input[0] = channel.of(
+                    file("\${projectDir}/tests/data/merge/run1.growth.zip"),
+                    file("\${projectDir}/tests/data/merge/2614__diet_b.zip")
+                )
+                input[1] = channel.of(file("\${projectDir}/tests/data/merge/2614__diet_b.build_manifest.csv"))
+                """
+            }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
 }

@@ -51,6 +51,8 @@ sample,run_accession,fastq_1,fastq_2
 
 Instead of reads you can give a **wide ASV sequence table** with `--seqtab_input` (sample ids in the first column, ASV sequences as the other columns, counts as values). The sample ids are read from the table; use `--input` or `--seqtab_input`, not both.
 
+To combine growth results of earlier runs, give a samplesheet of `sample,growth_zip,build_manifest` with `--growth_input` instead: all analysis steps are skipped and only the merge and MultiQC steps run (see [usage](docs/usage.md#merging-results-of-earlier-runs---growth_input)).
+
 Optionally, a media sheet with the diets to simulate (without it every sample grows on `--medium`, by default the western diet from Zenodo):
 
 `media.csv`:

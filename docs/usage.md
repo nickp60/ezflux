@@ -20,7 +20,7 @@ on one or more diets and merges everything into exchange tables and niche plots.
    sample and diet that applies to it.
 3. **Merging**: `MICOM_MERGE` combines all growth results, exports the exchanges and draws the import/export niche plots.
 
-You need EITHER a reads sample sheet (`--input`) OR a wide ASV table (`--seqtab_input`), a MICOM model database (`--micom_db`) and the metadata that ships with it (`--model_metadata`). Diets come from a diet sheet (`--media`) or, without one, from `--medium`. Reads need `--sylph_db`, `--seqtab_input` needs `--blast_db`.
+You need EITHER a reads sample sheet (`--input`) OR a wide ASV table (`--seqtab_input`), a MICOM model database (`--micom_db`) and the metadata that ships with it (`--model_metadata`). Diets come from a diet sheet (`--media`) or, without one, from `--medium`. Reads need `--sylph_db`, `--seqtab_input` needs `--blast_db`. Alternatively, `--growth_input` merges growth results of earlier runs and needs none of these (see [Merging results of earlier runs](#merging-results-of-earlier-runs---growth_input)).
 
 ## Samplesheet input
 
@@ -130,6 +130,28 @@ high_fiber,/data/high_fiber_gut_agora.qza,GUT_ASV
 Every sample must end up with at least one diet, either its own or one without a `sample_id`, and every `sample_id` here must exist
 in `--input`; the pipeline stops with an error otherwise. A sample on several diets is simulated once per diet, and
 `<sample>__<medium>` becomes the sample id in the merged results.
+
+## Merging results of earlier runs (`--growth_input`)
+
+A third input type skips the whole analysis (reading, annotation, model building and growth) and only runs the merge step and MultiQC on growth results that were produced earlier. Use it to combine runs, for example different batches of a project. `--input`, `--seqtab_input` and `--growth_input` are mutually exclusive, and `--micom_db`, `--model_metadata`, `--media` and the sylph/BLAST databases are not needed.
+
+```csv title="growth_samplesheet.csv"
+sample,growth_zip,build_manifest
+batch1,/results/batch1/merged/batch1.growth.zip,/results/batch1/merged/batch1.found_fraction.csv
+batch2,/results/batch2/merged/batch2.growth.zip,/results/batch2/merged/batch2.found_fraction.csv
+```
+
+| Column           | Description                                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `sample`         | Label for the row (no spaces). Must be unique together with `growth_zip`.                                    |
+| `growth_zip`     | Required. A MICOM growth results zip: either the `*.growth.zip` of a whole run, or the per-sample zips in `growth/`. |
+| `build_manifest` | Optional. Build manifest or `*.found_fraction.csv` matching the zip, used for the found-fraction plot.        |
+
+```bash
+nextflow run nf-core/ezflux --growth_input growth_samplesheet.csv --name combined --outdir results -profile docker
+```
+
+Each sample and medium may only be merged once: if the same `<sample>__<medium>` id appears in two zips, the merge fails and names the id. Without any build manifest the found-fraction table is empty and its plot reports that no manifests were provided.
 
 ## MICOM database and solver
 

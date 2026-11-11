@@ -17,10 +17,10 @@ tools:
 input:
   - growth_zips:
       type: list of files
-      description: one GrowthResults zip per sample and medium (sample_id = <sample>__<medium>)
+      description: GrowthResults zips, staged into zips*/ (per sample and medium with sample_id = <sample>__<medium>, or merged zips of earlier runs; a sample id may occur only once overall)
   - build_manifests:
       type: list of files
-      description: the matching micom build manifests
+      description: the matching micom build manifests, staged into manifests*/ (optional, may be empty)
 output:
   - record(growth, exchanges, growth_rates, production_rates, consumption_rates, found_fraction, import_niche, export_niche, growth_rates_html, plots):
       type: record

@@ -6,8 +6,12 @@ process MICOM_MERGE {
     conda "${moduleDir}/environment.yml"
 
     input:
-    growth_zips: Bag<Path>        // one GrowthResults zip per sample and medium (sample_id = <sample>__<medium>)
-    build_manifests: Bag<Path>    // the matching micom build manifests (found fractions)
+    growth_zips: Bag<Path>        // GrowthResults zips (sample_id = <sample>__<medium>): per sample and medium, or merged
+    build_manifests: Bag<Path>    // optional: the matching micom build manifests or found_fraction.csv files
+
+    stage:
+    stageAs(growth_zips, 'zips*/*')           // results of different runs may share file names
+    stageAs(build_manifests, 'manifests*/*')
 
     output:
     record(

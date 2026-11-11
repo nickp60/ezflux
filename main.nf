@@ -34,6 +34,7 @@ workflow NFCORE_EZFLUX {
     asv_samples // channel: [ id ] per sample (--seqtab_input)
     seqtab      // channel: the ASV table (--seqtab_input)
     diets       // channel: [ id, medium, diet ] per sample and diet (--media)
+    growth      // channel: [ sample, growth_zip, build_manifest ] per growth result (--growth_input)
 
     main:
 
@@ -45,6 +46,8 @@ workflow NFCORE_EZFLUX {
         asv_samples,
         seqtab,
         diets,
+        growth,
+        params.growth_input,
         params.micom_db,
         params.sylph_db,
         params.model_metadata,
@@ -77,9 +80,11 @@ workflow {
         params.outdir,
         params.input,
         params.seqtab_input,
+        params.growth_input,
         params.media,
         params.medium,
         params.sylph_db,
+        params.micom_db,
         params.model_metadata,
         params.blast_db,
         params.help,
@@ -94,7 +99,8 @@ workflow {
         PIPELINE_INITIALISATION.out.reads,
         PIPELINE_INITIALISATION.out.asv_samples,
         PIPELINE_INITIALISATION.out.seqtab,
-        PIPELINE_INITIALISATION.out.diets
+        PIPELINE_INITIALISATION.out.diets,
+        PIPELINE_INITIALISATION.out.growth
     )
     //
     // SUBWORKFLOW: Run completion tasks

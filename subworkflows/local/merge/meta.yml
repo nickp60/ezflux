@@ -8,9 +8,12 @@ keywords:
 components:
   - micom/merge
 input:
-  - growth:
+  - growth_zips:
       type: channel
-      description: 'record(id, medium, zip, build_manifest) per sample and diet'
+      description: 'one GrowthResults zip per item (per sample and medium, or the merged zip of an earlier run)'
+  - build_manifests:
+      type: channel
+      description: 'build manifests matching the zips; may be empty (the found fraction table is then empty)'
 output:
   - plots:
       type: channel

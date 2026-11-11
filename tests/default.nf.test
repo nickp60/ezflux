@@ -11,6 +11,7 @@ nextflow_pipeline {
         dst.parentFile.mkdirs()
         dst.text = new File("${projectDir}/assets/test_data/${name}").text
             .replace('assets/test_data/', "${projectDir}/assets/test_data/")
+            .replace('tests/data/', "${projectDir}/tests/data/")
         return dst.toString()
     }
 
@@ -210,6 +211,116 @@ nextflow_pipeline {
             assertAll(
                 { assert workflow.failed },
                 { assert (workflow.stdout + workflow.stderr).join('\n').contains('--name') }
+            )
+        }
+    }
+
+    test("-profile growth_input - merge the growth results of earlier runs (per-sample zips with manifests)") {
+
+        when {
+            params {
+                outdir       = "$outputDir"
+                name         = 'combined'
+                input        = null
+                seqtab_input = null
+                media        = null
+                growth_input = absoluteSheet("$projectDir", "$outputDir", 'growth_samplesheet.csv')
+            }
+        }
+
+        then {
+            def tasks = workflow.trace.succeeded().collect { task -> task.name }
+            def rates = new File("$outputDir/merged/combined.growth_rates.csv").readLines().drop(1).collect { line -> line.split(',')[-1] }.unique().sort()
+            assertAll(
+                { assert workflow.success },
+                // only the merge runs: no preprocessing, no growth, and no database or diet is needed
+                { assert tasks.count { task -> task.contains('MICOM_MERGE') } == 1 },
+                { assert !tasks.any { task -> task.contains('MICOM_GROW') || task.contains('PREPROCESSING') } },
+                { assert rates == [ '2614__diet_a', '2614__diet_b', 'ASV_SAMPLE1__diet_a' ] },
+                { assert new File("$outputDir/merged/combined.found_fraction.csv").readLines().size() == 3 },   // header + 2 samples
+                { assert ['found_fraction', 'growth_rates', 'import_niche', 'export_niche'].every { name -> new File("$outputDir/merged/${name}_mqc.png").size() > 1000 } }
+            )
+        }
+    }
+
+    test("growth_input - a merged results zip and a single zip, without manifests for the second") {
+
+        when {
+            params {
+                outdir       = "$outputDir"
+                input        = null
+                seqtab_input = null
+                media        = null
+                growth_input = absoluteSheet("$projectDir", "$outputDir", 'growth_samplesheet_mixed.csv')
+            }
+        }
+
+        then {
+            def rates = new File("$outputDir/merged/ezflux.growth_rates.csv").readLines().drop(1).collect { line -> line.split(',')[-1] }.unique().sort()
+            assertAll(
+                { assert workflow.success },
+                { assert rates == [ '2614__diet_a', '2614__diet_b', 'ASV_SAMPLE1__diet_a' ] },
+                // the found fractions of the earlier merge are used; the second zip has none
+                { assert new File("$outputDir/merged/ezflux.found_fraction.csv").readLines().size() == 3 }
+            )
+        }
+    }
+
+    test("growth_input - the same sample and medium in two results is rejected") {
+
+        when {
+            params {
+                outdir       = "$outputDir"
+                input        = null
+                seqtab_input = null
+                media        = null
+                growth_input = absoluteSheet("$projectDir", "$outputDir", 'growth_samplesheet_duplicate.csv')
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert (workflow.stdout + workflow.stderr).join('\n').contains('ASV_SAMPLE1__diet_a') }
+            )
+        }
+    }
+
+    test("growth_input - cannot be combined with --input or --seqtab_input") {
+
+        when {
+            params {
+                outdir       = "$outputDir"
+                input        = null
+                seqtab_input = "$projectDir/assets/test_data/seqtab.csv"
+                media        = null
+                growth_input = absoluteSheet("$projectDir", "$outputDir", 'growth_samplesheet.csv')
+            }
+        }
+
+        then {
+            assert workflow.failed
+        }
+    }
+
+    test("growth_input - without any manifest the found fraction table is empty and the merge still runs") {
+
+        when {
+            params {
+                outdir       = "$outputDir"
+                media        = null
+                input        = null
+                seqtab_input = null
+                growth_input = absoluteSheet("$projectDir", "$outputDir", 'growth_samplesheet_nomanifest.csv')
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.success },
+                { assert new File("$outputDir/merged/ezflux.growth_rates.csv").readLines().size() > 1 },
+                { assert new File("$outputDir/merged/ezflux.found_fraction.csv").readLines().size() == 1 },   // header only
+                { assert new File("$outputDir/merged/found_fraction_mqc.png").size() > 0 }
             )
         }
     }

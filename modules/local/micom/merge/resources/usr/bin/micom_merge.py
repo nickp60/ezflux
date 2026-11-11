@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Merge the growth results of all samples and media, export tables and draw the plots.
 
-Reads every *.zip (GrowthResults, one per sample and medium, sample_id = <sample>__<medium>) and
-every *.build_manifest.csv in the working directory, so the files must be staged side by side.
+Reads every zips*/*.zip (GrowthResults: one per sample and medium, or merged results of an earlier run;
+sample_id = <sample>__<medium>) and every manifests*/*.csv (micom build manifests, or the found_fraction.csv
+of an earlier merge; optional) in the working directory. A sample id may appear in one zip only.
 Each plot is written as micom's interactive HTML and as a static *_mqc.png (picked up by MultiQC).
 """
 import argparse
@@ -89,8 +90,17 @@ def main():
     p.add_argument("--n-neighbors", type=int, help="UMAP n_neighbors (default: max(2, min(8, n_samples // 2)))")
     args = p.parse_args()
 
-    zips = sorted(glob.glob("*.zip"))
-    growth = reduce(lambda a, b: a + b, (load_results(z) for z in zips))
+    zips = sorted(glob.glob("zips*/*.zip"))
+    if not zips:
+        sys.exit("no growth results (zips*/*.zip) to merge")
+    loaded = [load_results(z) for z in zips]
+    seen = {}
+    for zip_path, result in zip(zips, loaded):
+        for sample_id in result.growth_rates.sample_id.unique():
+            if sample_id in seen:
+                sys.exit(f"sample id '{sample_id}' is in both {seen[sample_id]} and {zip_path}: each sample and medium may only be merged once")
+            seen[sample_id] = zip_path
+    growth = reduce(lambda a, b: a + b, loaded)
     save_results(growth, f"{args.prefix}.growth.zip")
     growth.exchanges.to_csv(f"{args.prefix}.exchanges.csv", index=False)
     growth.growth_rates.to_csv(f"{args.prefix}.growth_rates.csv", index=False)
@@ -112,11 +122,14 @@ def main():
         failed_plot("growth_rates_mqc.png", f"{args.prefix}.growth_rates.html", "The growth rate plot", err)
 
     # the same community is built once per medium: keep one row per sample
-    found = pd.concat([pd.read_csv(f, dtype={"sample_id": str}) for f in sorted(glob.glob("*.build_manifest.csv"))])
-    found = found.drop_duplicates("sample_id")
     columns = ["sample_id", "found_taxa", "total_taxa", "found_fraction", "found_abundance_fraction"]
+    manifests = sorted(glob.glob("manifests*/*.csv"))
+    found = pd.concat([pd.read_csv(f, dtype={"sample_id": str}) for f in manifests] or [pd.DataFrame(columns=columns)])
+    found = found.drop_duplicates("sample_id")
     found[columns].to_csv(f"{args.prefix}.found_fraction.csv", index=False)
     try:
+        if found.empty:
+            raise ValueError("no build manifests were provided")
         found_fraction_plot(found, "found_fraction_mqc.png")
     except Exception as err:
         failed_plot("found_fraction_mqc.png", None, "The found fraction plot", err)

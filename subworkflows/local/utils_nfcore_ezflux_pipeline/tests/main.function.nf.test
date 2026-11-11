@@ -160,4 +160,28 @@ nextflow_function {
             assert function.failed
         }
     }
+
+    test("growthSamples - rows become records of sample, zip and optional manifest") {
+        function "growthSamples"
+        when {
+            function {
+                """
+                input[0] = [
+                    [ [ id:'batch1' ], file('a.growth.zip'), file('a.found_fraction.csv') ],
+                    [ [ id:'007' ],    file('b.growth.zip'), [] ]
+                ]
+                """
+            }
+        }
+        then {
+            def rows = function.result
+            assertAll(
+                { assert function.success },
+                { assert rows.collect { row -> row.sample } == [ 'batch1', '007' ] },
+                { assert rows[0].growth_zip.toString().endsWith('a.growth.zip') },
+                { assert rows[0].build_manifest.toString().endsWith('a.found_fraction.csv') },
+                { assert rows[1].build_manifest == null }
+            )
+        }
+    }
 }

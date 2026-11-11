@@ -25,6 +25,8 @@ workflow EZFLUX {
     ch_asv_samples // channel: [ id ] per sample of the ASV table
     ch_seqtab      // channel: the ASV table
     ch_diets       // channel: [ id, medium, diet ] per sample and diet
+    ch_growth      // channel: [ sample, growth_zip, build_manifest ] per growth result (--growth_input)
+    growth_input   // string: path to the growth results samplesheet (merge only)
     micom_db       // string: path to the micom model database
     sylph_db       // string: path to the sylph database (reads only)
     model_metadata // string: path to the model metadata (taxonomy -> model files)
@@ -39,20 +41,30 @@ workflow EZFLUX {
     def ch_versions = channel.empty()
     def ch_multiqc_files = channel.empty()
 
-    def ch_micom_db       = channel.value(file(micom_db, checkIfExists: true))
-    def ch_model_metadata = channel.value(file(model_metadata, checkIfExists: true))
-    // optional databases: an empty channel when not given (channel.empty() breaks .map in the typed subworkflow)
-    def ch_sylph_db       = sylph_db ? channel.value(file(sylph_db, checkIfExists: true)) : channel.fromList([])
-    def ch_blast_db       = blast_db ? channel.value(file(blast_db, checkIfExists: true)) : channel.fromList([])
-
     //
     // PHASE 1 - PREPROCESSING: reads (sylph) or ASV table (blastn) -> micom taxonomy tables
     // PHASE 2 - GROWTH: every sample on every diet that applies to it
+    // (both skipped with --growth_input, which brings the growth results of earlier runs)
+    //
+    def ch_zips      = ch_growth.map { row -> row.growth_zip }
+    def ch_manifests = ch_growth.filter { row -> row.build_manifest }.map { row -> row.build_manifest }
+    if (!growth_input) {
+        def ch_micom_db       = channel.value(file(micom_db, checkIfExists: true))
+        def ch_model_metadata = channel.value(file(model_metadata, checkIfExists: true))
+        // optional databases: an empty channel when not given (channel.empty() breaks .map in the typed subworkflow)
+        def ch_sylph_db       = sylph_db ? channel.value(file(sylph_db, checkIfExists: true)) : channel.fromList([])
+        def ch_blast_db       = blast_db ? channel.value(file(blast_db, checkIfExists: true)) : channel.fromList([])
+
+        PREPROCESSING(ch_reads, ch_asv_samples, ch_seqtab, ch_sylph_db, ch_blast_db, ch_model_metadata, ch_micom_db)
+        GROW(PREPROCESSING.out.taxonomy, ch_diets, ch_micom_db)
+        ch_zips      = GROW.out.growth.map { g -> g.zip }
+        ch_manifests = GROW.out.growth.map { g -> g.build_manifest }
+    }
+
+    //
     // PHASE 3 - MERGING: combined results, exchanges, growth rates and plots
     //
-    PREPROCESSING(ch_reads, ch_asv_samples, ch_seqtab, ch_sylph_db, ch_blast_db, ch_model_metadata, ch_micom_db)
-    GROW(PREPROCESSING.out.taxonomy, ch_diets, ch_micom_db)
-    MERGE(GROW.out.growth)
+    MERGE(ch_zips, ch_manifests)
 
     // the static plots (growth rates, found fraction, niches) go into the MultiQC report
     ch_multiqc_files = ch_multiqc_files.mix(MERGE.out.plots)

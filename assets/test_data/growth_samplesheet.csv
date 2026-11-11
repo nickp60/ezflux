@@ -1,0 +1,4 @@
+sample,growth_zip,build_manifest
+ASV_SAMPLE1,tests/data/merge/ASV_SAMPLE1__diet_a.zip,tests/data/merge/ASV_SAMPLE1__diet_a.build_manifest.csv
+2614,tests/data/merge/2614__diet_a.zip,tests/data/merge/2614__diet_a.build_manifest.csv
+2614,tests/data/merge/2614__diet_b.zip,tests/data/merge/2614__diet_b.build_manifest.csv

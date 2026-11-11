@@ -32,9 +32,11 @@ workflow PIPELINE_INITIALISATION {
     outdir            //  string: The output directory where the results will be saved
     input             //  string: Path to input samplesheet (reads)
     seqtab_input      //  string: Path to a wide ASV sequence table (alternative to the samplesheet)
+    growth_input      //  string: Path to a samplesheet of growth results of earlier runs (merge only)
     media             //  string: Path to media samplesheet
     medium            //  string: Default medium used when no media samplesheet is given
     sylph_db          //  string: Path to the sylph database (only needed for reads)
+    micom_db          //  string: Path to the micom model database (not needed with --growth_input)
     model_metadata    //  string: Path to the model metadata (taxonomy -> model file)
     blast_db          //  string: Path to a BLAST 16S database directory (only needed with --seqtab_input)
     help              // boolean: Display help message and exit
@@ -105,13 +107,19 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
-    // Read and cross-validate the samplesheets: EITHER reads (--input) OR an ASV table (--seqtab_input)
+    // Read and cross-validate the inputs: EXACTLY ONE of reads (--input), an ASV table (--seqtab_input)
+    // or the growth results of earlier runs (--growth_input, merging only)
     //
-    if (input && seqtab_input) {
-        error("Use either --input (reads) or --seqtab_input (ASV table), not both")
+    if ([ input, seqtab_input, growth_input ].count { path -> path } != 1) {
+        error("Use exactly one of --input (reads), --seqtab_input (ASV table) or --growth_input (growth results of earlier runs)")
     }
-    if (!model_metadata) {
-        error("--model_metadata is required (the metadata file shipped with the model database)")
+    if (!growth_input) {
+        if (!micom_db) {
+            error("--micom_db is required with --input or --seqtab_input")
+        }
+        if (!model_metadata) {
+            error("--model_metadata is required (the metadata file shipped with the model database)")
+        }
     }
     if (input && !sylph_db) {
         error("--input (reads) needs --sylph_db")
@@ -120,25 +128,29 @@ workflow PIPELINE_INITIALISATION {
         error("--seqtab_input needs --blast_db (a BLAST 16S database directory)")
     }
 
+    def growth_rows = growth_input ? growthSamples(samplesheetToList(growth_input, "${projectDir}/assets/schema_growth.json")) : []
     def reads_rows = input ? readsSamples(samplesheetToList(input, "${projectDir}/assets/schema_input.json")) : []
     def seqtab_file = seqtab_input ? file(seqtab_input, checkIfExists: true) : null
     def asv_rows = seqtab_file ? seqtabSamples(seqtab_file) : []
     def ids = (reads_rows + asv_rows).collect { sample -> sample.id }
-    def media_rows = media
+    // diets are only needed when the growth is simulated
+    def media_rows = growth_input ? [] : media
         ? samplesheetToList(media, "${projectDir}/assets/schema_media.json")
         : [ [ 'default', file(medium, checkIfExists: true), [] ] ]
 
     // one Map per sample (reads route / ASV route) and per sample x diet
     channel.fromList(reads_rows).set { ch_reads }
     channel.fromList(asv_rows).set { ch_asv_samples }
-    channel.fromList(expandDiets(media_rows, ids)).set { ch_diets }
+    channel.fromList(growth_input ? [] : expandDiets(media_rows, ids)).set { ch_diets }
     channel.fromList(seqtab_file ? [ seqtab_file ] : []).set { ch_seqtab }
+    channel.fromList(growth_rows).set { ch_growth }
 
     emit:
     reads       = ch_reads         // channel: [ id, single_end, n_runs, fastqs ] (maps)
     asv_samples = ch_asv_samples   // channel: [ id ] (maps)
     seqtab      = ch_seqtab        // channel: path (empty unless --seqtab_input)
     diets       = ch_diets         // channel: [ id, medium, diet ] (maps), one per sample and diet
+    growth      = ch_growth        // channel: [ sample, growth_zip, build_manifest ] (maps), only with --growth_input
     versions    = ch_versions
 }
 
@@ -192,6 +204,13 @@ workflow PIPELINE_COMPLETION {
     FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
+
+//
+// Growth samplesheet rows [ [ id ], growth_zip, build_manifest or [] ] -> one Map per row
+//
+def growthSamples(rows) {
+    return rows.collect { row -> [ sample: row[0].id.toString(), growth_zip: row[1], build_manifest: row[2] ?: null ] }
+}
 
 //
 // Samplesheet rows [ [ id, run_accession ], fastq_1, fastq_2 or [] ] -> one Map per sample.

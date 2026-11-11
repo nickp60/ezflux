@@ -11,9 +11,7 @@
             "fa_icon": "fas fa-terminal",
             "description": "Define where the pipeline should find input data and save output data.",
             "required": [
-                "micom_db",
-                "outdir",
-                "model_metadata"
+                "outdir"
             ],
             "properties": {
                 "input": {
@@ -36,6 +34,17 @@
                     "description": "Path to a wide ASV sequence table: sample ids in the first column, ASV sequences as the other columns, counts as values. Use this OR --input.",
                     "help_text": "The sample ids are read from the first column of the table. ASVs are searched against --blast_db with blastn. Mutually exclusive with --input.",
                     "fa_icon": "fas fa-table"
+                },
+                "growth_input": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "schema": "assets/schema_growth.json",
+                    "pattern": "^\\S+\\.csv$",
+                    "description": "CSV samplesheet of growth results from earlier runs (columns: sample, growth_zip, optional build_manifest). Skips preprocessing and growth; only merging and MultiQC run.",
+                    "help_text": "One row per growth result: the `growth/<sample>__<medium>.zip` of a run, or the `<name>.growth.zip` of an earlier merge. `build_manifest` (optional) is the matching `<sample>__<medium>.build_manifest.csv` or `<name>.found_fraction.csv`; it feeds the found-fraction plot. Mutually exclusive with --input and --seqtab_input. --micom_db, --model_metadata, --sylph_db, --blast_db and --media are not needed.",
+                    "fa_icon": "fas fa-object-group",
+                    "mimetype": "text/csv"
                 },
                 "media": {
                     "type": "string",
@@ -62,14 +71,14 @@
                     "format": "file-path",
                     "exists": true,
                     "pattern": "^\\S+\\.(qza|zip)$",
-                    "description": "MICOM model database (e.g. AGORA), as .qza or .zip.",
+                    "description": "MICOM model database (e.g. AGORA), as .qza or .zip. Not needed with --growth_input.",
                     "fa_icon": "fas fa-database"
                 },
                 "model_metadata": {
                     "type": "string",
                     "format": "file-path",
                     "exists": true,
-                    "description": "Metadata shipped with the model database that maps taxonomy to the model files (tab- or comma-separated, columns Genome_file and clade_name, no header).",
+                    "description": "Metadata shipped with the model database that maps taxonomy to the model files (tab- or comma-separated, columns Genome_file and clade_name, no header). Not needed with --growth_input.",
                     "help_text": "Used to re-annotate the sylph output and to map BLAST accessions to species.",
                     "fa_icon": "fas fa-sitemap"
                 },
@@ -407,7 +416,12 @@
             "required": [
                 "seqtab_input"
             ]
+        },
+        {
+            "required": [
+                "growth_input"
+            ]
         }
     ],
-    "errorMessage": "Provide exactly one of --input (reads samplesheet) or --seqtab_input (wide ASV table)"
+    "errorMessage": "Provide exactly one of --input (reads samplesheet), --seqtab_input (wide ASV table) or --growth_input (growth results of earlier runs)"
 }

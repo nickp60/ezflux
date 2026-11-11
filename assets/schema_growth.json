@@ -1,0 +1,46 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/nf-core/ezflux/master/assets/schema_growth.json",
+    "title": "nf-core/ezflux pipeline - params.growth_input schema",
+    "description": "Schema for the samplesheet provided with params.growth_input: growth results (GrowthResults zips) of earlier runs that are merged without simulating anything.",
+    "type": "array",
+    "uniqueEntries": [
+        "sample",
+        "growth_zip"
+    ],
+    "items": {
+        "type": "object",
+        "properties": {
+            "sample": {
+                "type": [
+                    "string",
+                    "integer"
+                ],
+                "pattern": "^\\S+$",
+                "errorMessage": "sample must be provided and cannot contain spaces",
+                "meta": [
+                    "id"
+                ]
+            },
+            "growth_zip": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.zip$",
+                "errorMessage": "growth_zip must be an existing GrowthResults .zip (growth/<sample>__<medium>.zip or <name>.growth.zip of an earlier run)"
+            },
+            "build_manifest": {
+                "type": "string",
+                "format": "file-path",
+                "exists": true,
+                "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.csv$",
+                "errorMessage": "build_manifest must be an existing .csv (<sample>__<medium>.build_manifest.csv or <name>.found_fraction.csv)"
+            }
+        },
+        "required": [
+            "sample",
+            "growth_zip"
+        ],
+        "errorMessage": "Each row needs sample and growth_zip (build_manifest is optional)"
+    }
+}
