@@ -1,15 +1,17 @@
 //
 // Phase 1 - preprocessing: turn reads or an ASV table into micom taxonomy tables
 //
-//   reads     -> (CAT_FASTQ if >1 run) -> sylph profile -> R re-annotation (model_metadata) --\
-//   ASV table -> FASTA -> blastn (16S db) -> best hit + model_metadata, per sample -------------+-> MICOM_TAXONOMY
+//   reads     -> (CAT_FASTQ if >1 run) -> sylph profile ---------------------------------------\
+//   ASV table -> FASTA -> blastn (16S db) -> best hit + model_metadata, per sample ------------+-> MICOM_TAXONOMY
+//
+// MICOM_TAXONOMY looks every sylph genome up in the model metadata by its file path and maps its species
+// to a model of the micom database.
 //
 nextflow.enable.types = true
 
 include { CAT_FASTQ        } from '../../../modules/nf-core/cat/fastq/main'
 include { SYLPH_PROFILE    } from '../../../modules/nf-core/sylph/profile/main'
 include { BLAST_BLASTN     } from '../../../modules/nf-core/blast/blastn/main'
-include { SYLPH_ANNOTATE   } from '../../../modules/local/sylph/annotate/main'
 include { ASV_TOFASTA      } from '../../../modules/local/asv/tofasta/main'
 include { BLAST_FORMAT     } from '../../../modules/local/blast/format/main'
 include { MICOM_TAXONOMY   } from '../../../modules/local/micom/taxonomy/main'
@@ -42,7 +44,7 @@ workflow PREPROCESSING {
         .map { row -> tuple([ id: row.id, single_end: row.single_end ], row.fastqs as List<Path>) }
 
     profile = SYLPH_PROFILE(unmerged.mix(merged), sylph_db)
-    sylph = SYLPH_ANNOTATE(profile.profile_out.map { meta, tsv -> record(id: meta.id, profile: tsv) }, model_metadata)
+    sylph = profile.profile_out.map { meta, tsv -> record(id: meta.id as String, abundances: tsv, source: 'sylph') }
 
     //
     // ASV route: one FASTA and one blastn search for the whole table, then best hits per sample
@@ -60,10 +62,11 @@ workflow PREPROCESSING {
     )
 
     //
-    // Both routes end in a per-sample species table that is matched to the micom database
+    // Both routes end in one table per sample that is matched to the models of the micom database
     //
     taxonomy = MICOM_TAXONOMY(
-        sylph.mix(formatted).map { r -> record(id: r.id, abundances: r.abundances) },
+        sylph.mix(formatted.map { r -> record(id: r.id, abundances: r.abundances, source: 'species') }),
+        model_metadata,
         micom_db
     )
 

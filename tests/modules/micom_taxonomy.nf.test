@@ -6,13 +6,15 @@ nextflow_workflow {
     tag "modules_local"
     tag "micom_taxonomy"
 
-    test("species are matched to the database, unmatched abundance is renormalised away") {
+    test("species table (BLAST route): species are matched to the database, unmatched abundance is renormalised away") {
         when {
             workflow {
                 """
                 input[0] = '2612'
                 input[1] = file("\${projectDir}/tests/data/taxonomy/abundances.csv")
-                input[2] = file("\${projectDir}/assets/test_data/micom_db.qza")
+                input[2] = 'species'
+                input[3] = file("\${projectDir}/assets/test_data/model_metadata.tsv")
+                input[4] = file("\${projectDir}/assets/test_data/micom_db.qza")
                 """
             }
         }
@@ -29,6 +31,60 @@ nextflow_workflow {
                 { assert rows.every { row -> row[header.indexOf('sample_id')] == '2612' } },
                 { assert new File(workflow.out.report[0].toString()).text.contains('Not in the database') }
             )
+        }
+    }
+
+    test("sylph profile: genomes are matched by path, brackets in species names keep two models apart") {
+        when {
+            workflow {
+                """
+                input[0] = '2612'
+                input[1] = file("\${projectDir}/tests/data/taxonomy/sylph_profile_rectale.tsv")
+                input[2] = 'sylph'
+                input[3] = file("\${projectDir}/tests/data/taxonomy/model_metadata_rectale.tsv")
+                input[4] = file("\${projectDir}/tests/data/taxonomy/micom_db_rectale.qza")
+                """
+            }
+        }
+        then {
+            def lines = new File(workflow.out.taxonomy[0].toString()).readLines()
+            def header = lines[0].split(',') as List
+            def abundance = lines.drop(1).collectEntries { line ->
+                def row = line.split(',') as List
+                [ (row[header.indexOf('id')]): row[header.indexOf('abundance')].toDouble() ]
+            }
+            def report = new File(workflow.out.report[0].toString()).readLines().drop(1).collect { line -> line.split('\t') as List }
+            def matchOf = { genome -> report.find { row -> row[0].endsWith(genome) }[4] }
+            assertAll(
+                { assert workflow.success },
+                // the two E. rectale genomes stay two models; the two E. coli genomes share one (20 + 10)
+                { assert abundance.keySet() == ['_Eubacterium__rectale', 'Eubacterium_rectale', 'Escherichia_coli'] as Set },
+                { assert Math.abs(abundance['_Eubacterium__rectale'] - 4 / 38) < 1e-6 },
+                { assert Math.abs(abundance['Eubacterium_rectale'] - 4 / 38) < 1e-6 },
+                { assert Math.abs(abundance['Escherichia_coli'] - 30 / 38) < 1e-6 },
+                // everything that was not modelled is accounted for in the report
+                { assert matchOf('Eubacterium_rectale_DSM_17629.fna.gz') == 'exact' },
+                { assert matchOf('Lachnospiraceae_nov_ERR1022478.fna.gz') == 'no model' },
+                { assert matchOf('Methanobrevibacter_smithii.fna.gz') == 'not bacterial' },
+                { assert matchOf('Unknown_genome.fna.gz') == 'not in model metadata' }
+            )
+        }
+    }
+
+    test("sylph profile without any genome in the model metadata fails") {
+        when {
+            workflow {
+                """
+                input[0] = '2612'
+                input[1] = file("\${projectDir}/assets/test_data/sylph_profile.tsv")
+                input[2] = 'sylph'
+                input[3] = file("\${projectDir}/tests/data/taxonomy/model_metadata_rectale.tsv")
+                input[4] = file("\${projectDir}/tests/data/taxonomy/micom_db_rectale.qza")
+                """
+            }
+        }
+        then {
+            assert workflow.failed
         }
     }
 }

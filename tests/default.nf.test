@@ -89,7 +89,6 @@ nextflow_pipeline {
                 // sample 2612 has two runs -> one CAT_FASTQ; the single-run sample is not concatenated
                 { assert count('CAT_FASTQ') == 1 },
                 { assert count('SYLPH_PROFILE') == 2 },
-                { assert count('SYLPH_ANNOTATE') == 2 },
                 { assert count('ASV_TOFASTA') == 0 },
                 { assert count('BLAST_BLASTN') == 0 },
                 { assert count('MICOM_TAXONOMY') == 2 },

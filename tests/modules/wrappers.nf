@@ -5,7 +5,6 @@ nextflow.enable.types = true
 
 include { ASV_TOFASTA    } from '../../modules/local/asv/tofasta/main'
 include { BLAST_FORMAT   } from '../../modules/local/blast/format/main'
-include { SYLPH_ANNOTATE } from '../../modules/local/sylph/annotate/main'
 include { MICOM_TAXONOMY } from '../../modules/local/micom/taxonomy/main'
 include { MICOM_GROW     } from '../../modules/local/micom/grow/main'
 include { MICOM_MERGE    } from '../../modules/local/micom/merge/main'
@@ -37,27 +36,16 @@ workflow TEST_BLAST_FORMAT {
     detailed: Value<Path> = out.map { r -> r.detailed }
 }
 
-workflow TEST_SYLPH_ANNOTATE {
-    take:
-    id: String
-    profile: Path
-    model_metadata: Path
-
-    main:
-    out = SYLPH_ANNOTATE(channel.value(record(id: id, profile: profile)), channel.value(model_metadata))
-
-    emit:
-    abundances: Value<Path> = out.map { r -> r.abundances }
-}
-
 workflow TEST_MICOM_TAXONOMY {
     take:
     id: String
     abundances: Path
+    source: String
+    model_metadata: Path
     micom_db: Path
 
     main:
-    out = MICOM_TAXONOMY(channel.value(record(id: id, abundances: abundances)), channel.value(micom_db))
+    out = MICOM_TAXONOMY(channel.value(record(id: id, abundances: abundances, source: source)), channel.value(model_metadata), channel.value(micom_db))
 
     emit:
     taxonomy: Value<Path> = out.map { r -> r.taxonomy }

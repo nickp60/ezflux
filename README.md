@@ -25,7 +25,7 @@
 **nf-core/ezflux** is a bioinformatics pipeline that predicts which metabolites the members of a microbial community take up and secrete on a given diet. It takes metagenomic reads or ASV tables, builds [MICOM](https://micom-dev.github.io/micom/) community metabolic models from them, simulates growth on one or more diets and writes merged exchange tables, production/consumption rates and niche plots.
 
 1. **Preprocessing**
-   - Reads: runs of the same sample are concatenated (`cat/fastq`), profiled with [`sylph`](https://github.com/bluenote-1577/sylph) and re-annotated with the model metadata (R)
+   - Reads: runs of the same sample are concatenated (`cat/fastq`), profiled with [`sylph`](https://github.com/bluenote-1577/sylph); every genome is then matched through the model metadata to a model of the MICOM database
    - Wide ASV table (`--seqtab_input`): ASVs are extracted to FASTA, searched once against a 16S database with [`blastn`](https://blast.ncbi.nlm.nih.gov/), the best hits are formatted (R) and mapped to species per sample with the model metadata
    - Match the species to the models of the MICOM database (`MICOM_TAXONOMY`)
 2. **Growth**: build each community and simulate growth for every sample and diet ([`MICOM`](https://micom-dev.github.io/micom/), cooperative trade-off FBA)

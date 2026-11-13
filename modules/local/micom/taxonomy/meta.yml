@@ -2,7 +2,7 @@
 # Typed process (Nextflow 26.10 syntax): inputs and outputs are records, listed here field by field.
 name: "micom_taxonomy"
 description: >-
-  Matches the species of one sample to the species-level micom model database and writes the micom taxonomy table.
+  Matches the taxa of one sample (sylph genomes through the model metadata, or species) to the species-level micom model database and writes the micom taxonomy table.
 keywords:
   - micom
   - taxonomy
@@ -15,16 +15,19 @@ tools:
       licence: ["Apache-2.0"]
       identifier: ""
 input:
-  - record(id, abundances):
+  - record(id, abundances, source):
       type: record
-      description: id = sample id; abundances = CSV with columns placeholder, sample_id, species, abundance
+      description: id = sample id; abundances = raw sylph profile (source 'sylph') or CSV with columns species, abundance (source 'species'); source = 'sylph' or 'species'
+  - model_metadata:
+      type: file
+      description: model metadata, tab separated without header, Genome_file and clade_name (lineage ending in s__<species>)
   - model_db:
       type: file
       description: species-level micom model database (.qza or .zip)
 output:
   - record(id, taxonomy, report):
       type: record
-      description: taxonomy = micom Batch taxonomy CSV; report = TSV with the number of models found per species
+      description: taxonomy = micom Batch taxonomy CSV; report = TSV with the species and the number of models found for every sylph genome or species
 topics:
   versions:
     - - ${task.process}:

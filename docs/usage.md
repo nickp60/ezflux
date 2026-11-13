@@ -62,17 +62,21 @@ Instructions for building the sylph database can be found  [here](https://github
 /db/genomes/GCF_000005845.2_genomic.fna.gz	d__Bacteria;p__Pseudomonadota;...;g__Escherichia;s__Escherichia coli
 ```
 
-For reads, the genome sylph reports is looked up by its file name. For ASVs, the BLAST subject accession (`saccver`) is looked
+For reads, the genome sylph reports (`Genome_file`) is looked up by its path. For ASVs, the BLAST subject accession (`saccver`) is looked
 up by the file name without the `.fna`/`.fa`/`.fasta` (and `.gz`) suffix, tolerating a different version suffix. Entries that
 are not `d__Bacteria` are dropped.
 
-### Annotating reads
+### Matching reads to models
 
-The raw `sylph profile` table is joined to the model metadata, restricted to bacteria, summed per species and renormalised to
-relative abundances (`<sample>.annotated_abundances.csv` with columns `placeholder,sample_id,species,abundance`).
-`MICOM_TAXONOMY` then matches these species to the models of `--micom_db` (case, spaces and GTDB `_A` suffixes are ignored; on
-a strain-level database a species' abundance is split over its models; the database's summary rank must be species, as in AGORA) and renormalises over the matched species. Species
-without a model are dropped and listed in `preprocessing/taxonomy/<sample>.annotation.tsv`.
+Every row of the raw `sylph profile` table is one genome. `MICOM_TAXONOMY` looks the `Genome_file` (for example
+`genomes/skesa/Eubacterium_rectale_ERR1022399.fna.gz`) up in `--model_metadata` by its path (by file name when the path is not
+listed and the file name is unique), which gives the species of that genome, and maps the species to the model of `--micom_db`
+with the same `species` value. The match is **exact**: `[Eubacterium] rectale` and `Eubacterium rectale` are two species with
+two models and are not merged. Only a species without an exact match is tried again ignoring brackets and underscores
+(the report says which). The `Taxonomic_abundance` of every matched genome goes to its model (genomes that share a model are
+added up, a species with several models in a strain-level database shares it equally) and is renormalised over the matched
+models. Non-bacterial genomes and genomes that are not in the metadata or have no model are dropped and listed in
+`preprocessing/taxonomy/<sample>.annotation.tsv`. The database's summary rank must be species, as in AGORA.
 
 ### ASV table and 16S annotation
 

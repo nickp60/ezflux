@@ -24,7 +24,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
 - `preprocessing/sylph/`
   - `<sample>.tsv`: raw sylph profile of the (concatenated) reads (only for samples with reads).
 - `preprocessing/annotation/`
-  - `<sample>.annotated_abundances.csv`: species abundances (`placeholder,sample_id,species,abundance`) from sylph or BLAST.
+  - `<sample>.annotated_abundances.csv`: species abundances (`placeholder,sample_id,species,abundance`) from BLAST (only with `--seqtab_input`).
   - `<sample>.blast_detailed.tsv`: best BLAST hit(s) per ASV of the sample (only with `--seqtab_input`).
 - `preprocessing/asv/`
   - `seqtab.fasta`, `seqtab.counts.csv`: ASVs extracted from the wide table (ids `ASV1`...) and their long-format counts, all samples (only with `--seqtab_input`).
@@ -32,7 +32,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes d
   - `seqtab.txt`: all BLAST hits of all ASVs (only with `--seqtab_input`).
 - `preprocessing/taxonomy/`
   - `<sample>.taxonomy.csv`: MICOM taxonomy table (ranks, `id`, `abundance`, `sample_id`) fed to the growth step.
-  - `<sample>.annotation.tsv`: for each species, how many models of the database it matched.
+  - `<sample>.annotation.tsv`: for each sylph genome (or BLAST species), the species it maps to, how many models of the database it matched and how (`exact`, `ignoring brackets`, `no model`, ...).
 
 </details>
 
