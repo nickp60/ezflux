@@ -33,6 +33,7 @@ def parse_args():
     p.add_argument("--no-coupling", action="store_true", help="switch off resource coupling constraints")
     p.add_argument("--presolve", choices=["true", "false", "auto"], help="override the solver presolve")
     p.add_argument("--numeric-focus", type=int, choices=[0, 1, 2, 3], help="Gurobi NumericFocus")
+    p.add_argument("--flux_method", type=str, choices=['minimal imports', 'pFBA', 'none'] , help="MICOM flux method", default='pFBA')
     return p.parse_args()
 
 
@@ -80,6 +81,7 @@ def main():
     config.tolerance = ARGS.tolerance
     config.progress = False
     config.simulation.tradeoff = ARGS.tradeoff
+    config.simulation.flux_method = ARGS.flux_method
     config.coupling.enabled = not ARGS.no_coupling
     config.build.cutoff = ARGS.cutoff
     config.build.force_rebuild = True
