@@ -66,6 +66,7 @@ workflow TEST_MICOM_GROW {
     emit:
     zip: Value<Path> = out.map { r -> r.zip }
     build_manifest: Value<Path> = out.map { r -> r.build_manifest }
+    models: Value<Path> = out.map { r -> r.models }
 }
 
 workflow TEST_MICOM_MERGE {

@@ -42,6 +42,25 @@ nextflow_workflow {
         }
     }
 
+    test("the built community models are an output, and the build manifest is printed before the growth run") {
+        when {
+            workflow { inputs }
+        }
+        then {
+            def models = new File(workflow.out.models[0].toString())
+            def pickles = models.listFiles().collect { f -> f.name }
+            // task stdout of the (single) task
+            def stdout = new File(workflow.out.models[0].toString()).parentFile.toPath().resolve('.command.out').toFile()
+            assertAll(
+                { assert workflow.success },
+                { assert models.isDirectory() && models.name == 'sample_1__diet.models' },
+                { assert pickles.contains('sample_1.pickle') },
+                { assert pickles.contains('manifest.csv') },
+                { assert stdout.text.contains('Build manifest:') && stdout.text.contains('found_abundance_fraction') }
+            )
+        }
+    }
+
     test("fails (after the retry) when the sample cannot be solved") {
         // an unknown solver makes every attempt fail
         when {

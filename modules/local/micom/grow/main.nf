@@ -18,6 +18,7 @@ process MICOM_GROW {
         medium: medium,
         zip: file("${id}__${medium}.zip"),
         build_manifest: file("${id}__${medium}.build_manifest.csv"),
+        models: file("${id}__${medium}.models"),     // the built community model(s), one pickle per sample
     )
 
     topic:
@@ -33,6 +34,7 @@ process MICOM_GROW {
         --model-db ${model_db} \\
         --label ${id}__${medium} \\
         --out ${id}__${medium} \\
+        --models-dir ${id}__${medium}.models \\
         --threads ${task.cpus} \\
         ${args}
     """
@@ -40,6 +42,7 @@ process MICOM_GROW {
     stub:
     """
     touch ${id}__${medium}.zip
+    mkdir ${id}__${medium}.models
     echo 'sample_id,found_taxa,total_taxa,found_fraction,found_abundance_fraction' > ${id}__${medium}.build_manifest.csv
     """
 }

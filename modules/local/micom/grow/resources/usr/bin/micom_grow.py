@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Grow one community (one sample on one medium) with micom's Batch workflow.
 
-Writes <out>.zip (GrowthResults, sample_id relabelled to --label) and <out>.build_manifest.csv.
+Writes <out>.zip (GrowthResults, sample_id relabelled to --label), <out>.build_manifest.csv and the built
+community models in --models-dir.
 Exits with 1 when the sample could not be solved so Nextflow can retry.
 """
 import argparse
@@ -25,6 +26,7 @@ def parse_args():
     p.add_argument("--model-db", required=True, help="micom model database")
     p.add_argument("--label", required=True, help="sample_id used in the results, e.g. <sample>__<medium>")
     p.add_argument("--out", required=True, help="output prefix")
+    p.add_argument("--models-dir", default="models", help="folder for the built community models")
     p.add_argument("--solver", default="gurobi")
     p.add_argument("--threads", type=int, default=1)
     p.add_argument("--tradeoff", type=float, default=0.5)
@@ -98,8 +100,10 @@ def main():
         config=config,
         name=ARGS.out,
     )
-    batch.build("models")
+    batch.build(ARGS.models_dir)
     batch.build_manifest.to_csv(f"{ARGS.out}.build_manifest.csv", index=False)
+    print("Build manifest:")
+    print(batch.build_manifest.to_string(index=False), flush=True)   # before the (long) growth simulation
     results = batch.grow()   # raises if the sample cannot be solved
 
     results.growth_rates["sample_id"] = ARGS.label

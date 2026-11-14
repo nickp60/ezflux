@@ -23,6 +23,7 @@ record Growth {
     medium: String
     zip: Path
     build_manifest: Path
+    models: Path
 }
 
 // a sample that comes from the ASV table (its counts are in the table itself)

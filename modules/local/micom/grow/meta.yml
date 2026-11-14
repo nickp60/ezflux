@@ -22,9 +22,9 @@ input:
       type: file
       description: micom model database, e.g. AGORA (.qza)
 output:
-  - record(id, medium, zip, build_manifest):
+  - record(id, medium, zip, build_manifest, models):
       type: record
-      description: zip = GrowthResults (sample_id relabelled <id>__<medium>); build_manifest = found fractions of the community
+      description: zip = GrowthResults (sample_id relabelled <id>__<medium>); build_manifest = found fractions of the community; models = directory <id>__<medium>.models with the built community model (pickle)
 topics:
   versions:
     - - ${task.process}:

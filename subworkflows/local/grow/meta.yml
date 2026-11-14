@@ -20,7 +20,7 @@ input:
 output:
   - growth:
       type: channel
-      description: 'record(id, medium, zip, build_manifest) per sample and diet'
+      description: 'record(id, medium, zip, build_manifest, models) per sample and diet'
 authors:
   - "@watersn"
 maintainers:
