@@ -6,6 +6,7 @@ community models in --models-dir.
 Exits with 1 when the sample could not be solved so Nextflow can retry.
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -37,6 +38,7 @@ def parse_args():
     p.add_argument("--numeric-focus", type=int, choices=[0, 1, 2, 3], help="Gurobi NumericFocus")
     p.add_argument("--bar-conv-tol", type=float, help="Gurobi BarConvTol (micom sets 1e-9)")
     p.add_argument("--bar-iter-limit", type=int, help="Gurobi BarIterLimit (micom sets 2000)")
+    p.add_argument("--solver-log", action="store_true", help="let Gurobi write its own solver log (very verbose) to the task's stdout")
     p.add_argument("--flux_method", type=str, choices=['minimal imports', 'pFBA', 'none'] , help="MICOM flux method", default='pFBA')
     return p.parse_args()
 
@@ -66,6 +68,21 @@ PRESOLVE = {"true": True, "false": False, "auto": "auto", None: None}[ARGS.preso
 _micom_adjust = mu.adjust_solver_config
 
 
+GUROBI_PARAMS = ["Method", "BarConvTol", "BarIterLimit", "NumericFocus", "Presolve", "ScaleFlag", "CrossoverBasis", "Threads"]
+_LOGGED = set()
+
+
+def _log_settings(solver):
+    """Print the Gurobi parameters that are set on the model, once per process and distinct set of values."""
+    params = solver.problem.Params
+    values = tuple((name, getattr(params, name, None)) for name in GUROBI_PARAMS)
+    if values in _LOGGED:
+        return
+    _LOGGED.add(values)
+    shown = ", ".join(f"{name}={value}" for name, value in values)
+    print(f"[micom_grow] Gurobi settings in effect (pid {os.getpid()}): {shown}", flush=True)
+
+
 def _adjust(solver):
     _micom_adjust(solver)
     if PRESOLVE is not None:
@@ -77,6 +94,9 @@ def _adjust(solver):
             solver.problem.Params.BarConvTol = ARGS.bar_conv_tol
         if ARGS.bar_iter_limit is not None:
             solver.problem.Params.BarIterLimit = ARGS.bar_iter_limit
+        if ARGS.solver_log:
+            solver.problem.Params.LogToConsole = 1   # micom switches the console log off
+        _log_settings(solver)
 
 
 mu.adjust_solver_config = _adjust

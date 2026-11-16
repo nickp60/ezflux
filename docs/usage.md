@@ -180,6 +180,11 @@ license". `--micom_solver cplex` and `--micom_solver hybrid` (open source, much 
   A looser tolerance with more iterations, for example `--micom_bar_conv_tol 1e-8 --micom_bar_iter_limit 3500`, helps samples that
   stop short of convergence. They only apply to the Gurobi solver and are used on every attempt, including the retry.
 
+To check what the solver really uses, look at `.command.out` of a `MICOM_GROW` task: it has `[micom_grow] Gurobi settings in effect`
+lines with the values read back from the Gurobi model (`BarConvTol`, `BarIterLimit`, `NumericFocus`, `Presolve`, ...), printed by
+every worker process whenever the solver is configured. `--micom_solver_log true` additionally switches on Gurobi's own log, which
+lists the parameters it changed from their defaults for each solve.
+
 MICOM only sets these Gurobi options internally, so they are applied by overriding its solver setup inside the task.
 
 ## Running the pipeline

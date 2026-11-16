@@ -376,6 +376,12 @@
                     "minimum": 0,
                     "description": "Gurobi BarIterLimit (maximum barrier iterations). Unset keeps micom's default (2000).",
                     "fa_icon": "fas fa-redo"
+                },
+                "micom_solver_log": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Write Gurobi's own solver log (including the parameters it changed from their defaults for each solve) to the task's .command.out. Verbose; meant for debugging.",
+                    "fa_icon": "fas fa-file-alt"
                 }
             }
         },

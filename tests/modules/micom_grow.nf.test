@@ -66,6 +66,7 @@ nextflow_workflow {
             params {
                 micom_bar_conv_tol   = 1e-8
                 micom_bar_iter_limit = 3500
+                micom_solver_log     = true
             }
             workflow { inputs }
         }
@@ -74,7 +75,8 @@ nextflow_workflow {
             assertAll(
                 { assert workflow.success },
                 { assert (command =~ /--bar-conv-tol (\S+)/)[0][1].toDouble() == 1e-8 },
-                { assert command.contains('--bar-iter-limit 3500') }
+                { assert command.contains('--bar-iter-limit 3500') },
+                { assert command.contains('--solver-log') }
             )
         }
     }
