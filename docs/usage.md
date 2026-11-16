@@ -176,6 +176,9 @@ license". `--micom_solver cplex` and `--micom_solver hybrid` (open source, much 
 - `--micom_coupling false` switches off MICOM's resource coupling constraints, which are the most common cause of numerical
   trouble in large communities and are much cheaper to solve without.
 - `--micom_presolve true|false|auto` overrides the solver presolve (MICOM's default is on).
+- `--micom_bar_conv_tol` and `--micom_bar_iter_limit` set Gurobi's `BarConvTol` (MICOM uses 1e-9) and `BarIterLimit` (MICOM uses 2000).
+  A looser tolerance with more iterations, for example `--micom_bar_conv_tol 1e-8 --micom_bar_iter_limit 3500`, helps samples that
+  stop short of convergence. They only apply to the Gurobi solver and are used on every attempt, including the retry.
 
 MICOM only sets these Gurobi options internally, so they are applied by overriding its solver setup inside the task.
 

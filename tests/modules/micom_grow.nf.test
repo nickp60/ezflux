@@ -61,6 +61,24 @@ nextflow_workflow {
         }
     }
 
+    test("Gurobi barrier options are passed on to the script (and ignored by other solvers)") {
+        when {
+            params {
+                micom_bar_conv_tol   = 1e-8
+                micom_bar_iter_limit = 3500
+            }
+            workflow { inputs }
+        }
+        then {
+            def command = new File(workflow.out.models[0].toString()).parentFile.toPath().resolve('.command.sh').toFile().text
+            assertAll(
+                { assert workflow.success },
+                { assert (command =~ /--bar-conv-tol (\S+)/)[0][1].toDouble() == 1e-8 },
+                { assert command.contains('--bar-iter-limit 3500') }
+            )
+        }
+    }
+
     test("fails (after the retry) when the sample cannot be solved") {
         // an unknown solver makes every attempt fail
         when {

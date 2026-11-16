@@ -35,6 +35,8 @@ def parse_args():
     p.add_argument("--no-coupling", action="store_true", help="switch off resource coupling constraints")
     p.add_argument("--presolve", choices=["true", "false", "auto"], help="override the solver presolve")
     p.add_argument("--numeric-focus", type=int, choices=[0, 1, 2, 3], help="Gurobi NumericFocus")
+    p.add_argument("--bar-conv-tol", type=float, help="Gurobi BarConvTol (micom sets 1e-9)")
+    p.add_argument("--bar-iter-limit", type=int, help="Gurobi BarIterLimit (micom sets 2000)")
     p.add_argument("--flux_method", type=str, choices=['minimal imports', 'pFBA', 'none'] , help="MICOM flux method", default='pFBA')
     return p.parse_args()
 
@@ -68,8 +70,13 @@ def _adjust(solver):
     _micom_adjust(solver)
     if PRESOLVE is not None:
         solver.configuration.presolve = PRESOLVE
-    if ARGS.numeric_focus is not None and interface_to_str(solver.interface) == "gurobi":
-        solver.problem.Params.NumericFocus = ARGS.numeric_focus
+    if interface_to_str(solver.interface) == "gurobi":
+        if ARGS.numeric_focus is not None:
+            solver.problem.Params.NumericFocus = ARGS.numeric_focus
+        if ARGS.bar_conv_tol is not None:
+            solver.problem.Params.BarConvTol = ARGS.bar_conv_tol
+        if ARGS.bar_iter_limit is not None:
+            solver.problem.Params.BarIterLimit = ARGS.bar_iter_limit
 
 
 mu.adjust_solver_config = _adjust

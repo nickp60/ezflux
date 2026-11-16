@@ -357,6 +357,25 @@
                     "maximum": 3,
                     "description": "Gurobi NumericFocus for retries after a failed attempt.",
                     "fa_icon": "fas fa-redo"
+                },
+                "micom_bar_conv_tol": {
+                    "type": [
+                        "number",
+                        "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Gurobi BarConvTol (barrier convergence tolerance). Unset keeps micom's default (1e-9); a looser value such as 1e-8 can help difficult samples finish.",
+                    "fa_icon": "fas fa-bullseye"
+                },
+                "micom_bar_iter_limit": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "minimum": 0,
+                    "description": "Gurobi BarIterLimit (maximum barrier iterations). Unset keeps micom's default (2000).",
+                    "fa_icon": "fas fa-redo"
                 }
             }
         },
