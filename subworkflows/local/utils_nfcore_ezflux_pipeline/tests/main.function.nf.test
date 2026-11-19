@@ -184,4 +184,71 @@ nextflow_function {
             )
         }
     }
+
+    test("checkRareBugs - nothing is checked when collapsing is off") {
+        function "checkRareBugs"
+        when {
+            function {
+                """
+                input[0] = false
+                input[1] = 0.0001
+                input[2] = 0.001
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("checkRareBugs - a threshold above the cutoff is accepted") {
+        function "checkRareBugs"
+        when {
+            function {
+                """
+                input[0] = true
+                input[1] = 0.01
+                input[2] = 0.001
+                """
+            }
+        }
+        then {
+            assert function.success
+        }
+    }
+
+    test("checkRareBugs - a threshold equal to the cutoff fails") {
+        function "checkRareBugs"
+        when {
+            function {
+                """
+                input[0] = true
+                input[1] = 0.001
+                input[2] = 0.001
+                """
+            }
+        }
+        then {
+            assertAll(
+                { assert function.failed },
+                { assert function.stdout.toString().contains('must be higher than --micom_cutoff') || function.stderr.toString().contains('must be higher than --micom_cutoff') }
+            )
+        }
+    }
+
+    test("checkRareBugs - a threshold below the cutoff, or none, fails") {
+        function "checkRareBugs"
+        when {
+            function {
+                """
+                input[0] = true
+                input[1] = null
+                input[2] = 0.001
+                """
+            }
+        }
+        then {
+            assert function.failed
+        }
+    }
 }

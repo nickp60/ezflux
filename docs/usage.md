@@ -187,6 +187,39 @@ lists the parameters it changed from their defaults for each solve.
 
 MICOM only sets these Gurobi options internally, so they are applied by overriding its solver setup inside the task.
 
+### Collapsing rare taxa (`--collapse_rare_bugs`)
+
+Communities with hundreds of taxa are slow and numerically difficult to solve, and the long tail of rare taxa often carries a
+lot of redundant metabolism. With `--collapse_rare_bugs true` the rare taxa of every sample are pooled into **one
+meta-organism called `rare`** before the community is built, so the growth simulation sees a much smaller community while
+the pathways of the rare taxa stay available to it.
+
+Two thresholds decide what happens to a taxon, by its relative abundance in the sample:
+
+| relative abundance | what happens |
+| --- | --- |
+| below `--micom_cutoff` (default 0.001) | dropped entirely, as without this option |
+| between `--micom_cutoff` and `--rare_bugs_threshold` (default 0.01) | collapsed into `rare` |
+| at or above `--rare_bugs_threshold` | included as a full organism |
+
+**`--rare_bugs_threshold` must be higher than `--micom_cutoff`**, otherwise nothing could be collapsed and the pipeline stops
+with an error. Taxa that are not found in the model database are left out first, as always. If fewer than two taxa fall in the
+collapsed range, the sample is built as usual.
+
+`rare` is built from the models of the collapsed taxa as follows:
+
+- its reactions are the **union** of their reactions (where several models have the same reaction the most abundant taxon's version is used), so every pathway that one of them has is available to it;
+- its abundance is the **sum** of their abundances;
+- its biomass reaction is the **abundance-weighted average** of their biomass reactions, so the composition of the dominant members of the tail dominates.
+
+Keep in mind that `rare` can use all the pathways of its members at once, which no single organism could. It therefore
+somewhat overestimates what the rare tail can do, and its growth rate describes the pooled tail, not any one taxon.
+Results of runs with and without collapsing are not directly comparable, and the individual rare taxa no longer appear in the growth rates.
+
+Each task writes `<sample>__<medium>.collapsed_taxa.csv` (taxon, abundance and weight in `rare`) next to its results, and the
+build manifest gets the columns `n_full_taxa`, `n_collapsed_taxa` and `collapsed_abundance_fraction`.
+The models that are needed are extracted into the task's work directory (`<sample>__<medium>.collapse_work`, removed when the task ends), not into the system's temporary directory.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:

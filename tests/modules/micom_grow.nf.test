@@ -81,6 +81,64 @@ nextflow_workflow {
         }
     }
 
+    test("collapse_rare_bugs pools the taxa between micom_cutoff and rare_bugs_threshold into one 'rare' organism") {
+        // relative abundances: strain_a 0.331, strain_c 0.305, strain_b 0.271, strain_d 0.093 -> b and d are collapsed
+        when {
+            params {
+                collapse_rare_bugs  = true
+                rare_bugs_threshold = 0.3
+            }
+            workflow { inputs }
+        }
+        then {
+            def rows = growthRates(workflow.out.zip[0])
+            def taxa = rows.collect { row -> row.taxon }.sort()
+            def taskDir = new File(workflow.out.models[0].toString()).parentFile
+            def collapsed = new File(taskDir, 'sample_1__diet.collapsed_taxa.csv').readLines()
+            def manifest = new File(workflow.out.build_manifest[0].toString()).readLines()
+            assertAll(
+                { assert workflow.success },
+                { assert taxa == [ 'rare', 'strain_a', 'strain_c' ] },
+                { assert rows.every { row -> row.growth_rate.toDouble() > 0 } },
+                { assert (rows.find { row -> row.taxon == 'rare' }.abundance.toDouble() - 0.36412).abs() < 1e-4 },
+                { assert collapsed.size() == 3 && collapsed.drop(1).collect { l -> l.split(',')[0] }.sort() == [ 'strain_b', 'strain_d' ] },
+                { assert manifest[0].contains('n_collapsed_taxa') && manifest[0].contains('found_abundance_fraction') },
+                { assert manifest[1].split(',')[manifest[0].split(',').toList().indexOf('n_collapsed_taxa')] == '2' },
+                { assert new File(workflow.out.models[0].toString(), 'manifest.csv').text.contains('n_collapsed_taxa') }
+            )
+        }
+    }
+
+    test("collapse_rare_bugs with fewer than two rare taxa builds the sample as usual") {
+        when {
+            params {
+                collapse_rare_bugs  = true
+                rare_bugs_threshold = 0.1    // only strain_d (0.093) is rare
+            }
+            workflow { inputs }
+        }
+        then {
+            def rows = growthRates(workflow.out.zip[0])
+            assertAll(
+                { assert workflow.success },
+                { assert rows.collect { row -> row.taxon }.sort() == [ 'strain_a', 'strain_b', 'strain_c', 'strain_d' ] }
+            )
+        }
+    }
+
+    test("collapse_rare_bugs: a threshold that is not above micom_cutoff makes the task fail") {
+        when {
+            params {
+                collapse_rare_bugs  = true
+                rare_bugs_threshold = 0.0005
+            }
+            workflow { inputs }
+        }
+        then {
+            assert workflow.failed
+        }
+    }
+
     test("fails (after the retry) when the sample cannot be solved") {
         // an unknown solver makes every attempt fail
         when {

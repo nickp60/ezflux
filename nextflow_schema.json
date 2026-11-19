@@ -313,6 +313,22 @@
                     "description": "Abundance cutoff below which taxa are dropped when building a community.",
                     "fa_icon": "fas fa-filter"
                 },
+                "collapse_rare_bugs": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Collapse the rare taxa of every sample into one meta-organism called 'rare' before the community is built, to simplify the model while keeping the pathways of the rare taxa available.",
+                    "help_text": "Taxa below `--micom_cutoff` are dropped entirely. Taxa between `--micom_cutoff` and `--rare_bugs_threshold` are collapsed into `rare`: the union of their reactions, with the summed abundance and an abundance-weighted biomass reaction. Taxa at or above `--rare_bugs_threshold` stay full organisms.",
+                    "fa_icon": "fas fa-compress-arrows-alt"
+                },
+                "rare_bugs_threshold": {
+                    "type": "number",
+                    "default": 0.01,
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "description": "Relative abundance below which taxa are collapsed into 'rare' (with --collapse_rare_bugs). Must be higher than --micom_cutoff.",
+                    "help_text": "Taxa with a relative abundance below `--micom_cutoff` are dropped entirely, taxa between `--micom_cutoff` and this threshold are collapsed, and taxa above it are included as full organisms. The threshold must therefore be higher than `--micom_cutoff`; the pipeline stops otherwise.",
+                    "fa_icon": "fas fa-filter"
+                },
                 "micom_tolerance": {
                     "type": "number",
                     "default": 1e-06,

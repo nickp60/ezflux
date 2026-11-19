@@ -127,6 +127,9 @@ workflow PIPELINE_INITIALISATION {
     if (seqtab_input && !blast_db) {
         error("--seqtab_input needs --blast_db (a BLAST 16S database directory)")
     }
+    if (!growth_input) {
+        checkRareBugs(params.collapse_rare_bugs, params.rare_bugs_threshold, params.micom_cutoff)
+    }
 
     def growth_rows = growth_input ? growthSamples(samplesheetToList(growth_input, "${projectDir}/assets/schema_growth.json")) : []
     def reads_rows = input ? readsSamples(samplesheetToList(input, "${projectDir}/assets/schema_input.json")) : []
@@ -208,6 +211,19 @@ workflow PIPELINE_COMPLETION {
 //
 // Growth samplesheet rows [ [ id ], growth_zip, build_manifest or [] ] -> one Map per row
 //
+//
+// --collapse_rare_bugs needs --rare_bugs_threshold > --micom_cutoff: taxa below the cutoff are dropped entirely, taxa between
+// the cutoff and the threshold are collapsed into one meta-organism, taxa above the threshold stay full organisms.
+//
+def checkRareBugs(collapse, threshold, cutoff) {
+    if (!collapse) {
+        return
+    }
+    if (threshold == null || !(threshold > cutoff)) {
+        error("--rare_bugs_threshold (${threshold}) must be higher than --micom_cutoff (${cutoff}): taxa below the cutoff are dropped, taxa between the cutoff and the threshold are collapsed into 'rare', taxa above the threshold stay full organisms")
+    }
+}
+
 def growthSamples(rows) {
     return rows.collect { row -> [ sample: row[0].id.toString(), growth_zip: row[1], build_manifest: row[2] ?: null ] }
 }

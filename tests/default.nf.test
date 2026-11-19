@@ -193,6 +193,32 @@ nextflow_pipeline {
         }
     }
 
+    test("collapse_rare_bugs validation - rare_bugs_threshold must be higher than micom_cutoff, checked at startup") {
+
+        when {
+            params {
+                outdir              = "$outputDir"
+                input               = null
+                seqtab_input        = "$projectDir/assets/test_data/seqtab.csv"
+                media               = absoluteSheet("$projectDir", "$outputDir", 'media.csv')
+                micom_db            = "$projectDir/assets/test_data/micom_db.qza"
+                model_metadata      = "$projectDir/assets/test_data/model_metadata.tsv"
+                blast_db            = "$projectDir/assets/test_data/blast_db"
+                micom_cutoff        = 0.01
+                collapse_rare_bugs  = true
+                rare_bugs_threshold = 0.005
+            }
+        }
+
+        then {
+            assertAll(
+                { assert workflow.failed },
+                { assert workflow.trace.tasks().size() == 0 },
+                { assert (workflow.stdout + workflow.stderr).join('\n').contains('must be higher than --micom_cutoff') }
+            )
+        }
+    }
+
     test("--name must be a safe file name prefix") {
 
         when {
