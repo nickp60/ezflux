@@ -209,7 +209,7 @@ collapsed range, the sample is built as usual.
 `rare` is built from the models of the collapsed taxa as follows:
 
 - its reactions are the **union** of their reactions (where several models have the same reaction the most abundant taxon's version is used), so every pathway that one of them has is available to it;
-- its abundance is the **sum** of their abundances;
+- its abundance is set with `--collapse_rare_abundance`: `threshold` (default) is `--rare_bugs_threshold` itself (the pooled tail counts as one organism just at the threshold), `median` is the median abundance of the collapsed taxa (the pooled tail counts as one typical rare organism), and `sum` is the sum of their abundances (the tail keeps its total share). Abundances are made relative again when the community is built, so `threshold` and `median` give the tail a smaller share of the community than `sum` does;
 - its biomass reaction is the **abundance-weighted average** of their biomass reactions, so the composition of the dominant members of the tail dominates.
 
 Keep in mind that `rare` can use all the pathways of its members at once, which no single organism could. It therefore
@@ -217,7 +217,7 @@ somewhat overestimates what the rare tail can do, and its growth rate describes 
 Results of runs with and without collapsing are not directly comparable, and the individual rare taxa no longer appear in the growth rates.
 
 Each task writes `<sample>__<medium>.collapsed_taxa.csv` (taxon, abundance and weight in `rare`) next to its results, and the
-build manifest gets the columns `n_full_taxa`, `n_collapsed_taxa` and `collapsed_abundance_fraction`.
+build manifest gets the columns `n_full_taxa`, `n_collapsed_taxa`, `collapsed_abundance_fraction` (the share of the matched abundance that was collapsed), `rare_abundance_mode` and `rare_abundance_fraction` (the share of the final community that `rare` has).
 The models that are needed are extracted into the task's work directory (`<sample>__<medium>.collapse_work`, removed when the task ends), not into the system's temporary directory.
 
 ## Running the pipeline

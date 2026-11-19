@@ -7,8 +7,9 @@ Exits with 1 when the sample could not be solved so Nextflow can retry.
 
 With --collapse-rare-threshold the rare taxa are pooled into one meta-organism called "rare" before the community is built:
 taxa below --cutoff are dropped, taxa between --cutoff and the threshold are collapsed into "rare" (the union of their
-reactions, so the pathways they contribute stay available; abundance = their summed abundance; biomass reaction = their
-abundance-weighted average), and taxa at or above the threshold stay full organisms.
+reactions, so the pathways they contribute stay available; biomass reaction = their abundance-weighted average), and taxa
+at or above the threshold stay full organisms. --collapse-rare-abundance sets the abundance given to "rare": the sum of the
+abundances of the collapsed taxa, their median, or the threshold itself (default).
 """
 import argparse
 import os
@@ -56,6 +57,8 @@ def parse_args():
     p.add_argument("--bar-iter-limit", type=int, help="Gurobi BarIterLimit (micom sets 2000)")
     p.add_argument("--solver-log", action="store_true", help="let Gurobi write its own solver log (very verbose) to the task's stdout")
     p.add_argument("--collapse-rare-threshold", type=float, help="collapse the taxa with a relative abundance between --cutoff and this value into one meta-organism 'rare'; must be larger than --cutoff")
+    p.add_argument("--collapse-rare-abundance", choices=["sum", "median", "threshold"], default="threshold",
+                   help="abundance of the collapsed meta-organism: sum or median of the abundances of the collapsed taxa, or the --collapse-rare-threshold value itself")
     p.add_argument("--flux_method", type=str, choices=['minimal imports', 'pFBA', 'none'] , help="MICOM flux method", default='pFBA')
     return p.parse_args()
 
@@ -174,11 +177,13 @@ def join_weighted(files, weights, model_id):
     return model
 
 
-def collapse_rare(taxonomy, model_db, cutoff, threshold, folder):
+def collapse_rare(taxonomy, model_db, cutoff, threshold, folder, abundance_mode="threshold"):
     """Pool the rare taxa of the (single) sample into one meta-organism.
 
     Follows micom's own order: abundances are made relative, taxa <= cutoff are dropped, the rest is matched to the
-    model database. Of the matched taxa those below the threshold are joined into `rare`.
+    model database. Of the matched taxa those below the threshold are joined into `rare`, whose abundance is the sum or
+    the median of the abundances of those taxa, or the threshold itself (abundance_mode). As always the abundances of the
+    community are made relative again when the community is built.
     Returns (taxonomy with a `file` column, build metrics, table of the collapsed taxa), or None when fewer than two
     taxa are below the threshold (nothing to collapse; the normal model database route is used then).
     """
@@ -216,18 +221,23 @@ def collapse_rare(taxonomy, model_db, cutoff, threshold, folder):
     while rare_id in set(full.id):
         rare_id += "_"
     weights = (rare.abundance / rare.abundance.sum()).tolist()
+    rare_abundance = {"sum": rare.abundance.sum(), "median": rare.abundance.median(), "threshold": threshold}[abundance_mode]
+    rare_fraction = rare_abundance / (full.abundance.sum() + rare_abundance)   # share of the finished community
     fetch(list(full.file) + list(rare.file))
     rare_file = os.path.join(folder, f"{rare_id}.json")
     model = join_weighted(list(rare.file), weights, rare_id)
     save_json_model(model, rare_file)
     print(f"Collapsed {len(rare)} taxa ({100 * rare.abundance.sum() / merged.abundance.sum():.1f}% of the matched abundance) into "
           f"'{rare_id}': {len(model.reactions)} reactions, {len(model.metabolites)} metabolites", flush=True)
-    rare_row = pd.DataFrame({"id": [rare_id], "abundance": [rare.abundance.sum()], "file": [rare_file]})
+    print(f"Abundance of '{rare_id}' ({abundance_mode} of the collapsed taxa): {rare_abundance:.5g}, "
+          f"{100 * rare_fraction:.1f}% of the community", flush=True)
+    rare_row = pd.DataFrame({"id": [rare_id], "abundance": [rare_abundance], "file": [rare_file]})
     rows = pd.concat([full[["id", "abundance", "file"]], rare_row], ignore_index=True)
     rows.insert(0, "sample_id", taxonomy.sample_id.iloc[0])
     collapsed = pd.DataFrame({"id": rare.id.values, "abundance": rare.abundance.values, "weight_in_rare": weights})
     metrics.update({"n_full_taxa": len(full), "n_collapsed_taxa": len(rare),
-                    "collapsed_abundance_fraction": rare.abundance.sum() / merged.abundance.sum()})
+                    "collapsed_abundance_fraction": rare.abundance.sum() / merged.abundance.sum(),
+                    "rare_abundance_mode": abundance_mode, "rare_abundance_fraction": rare_fraction})
     return rows, metrics, collapsed
 
 
@@ -255,7 +265,7 @@ def main():
         if ARGS.collapse_rare_threshold is not None:
             if not ARGS.collapse_rare_threshold > ARGS.cutoff:
                 sys.exit(f"--collapse-rare-threshold ({ARGS.collapse_rare_threshold}) must be larger than --cutoff ({ARGS.cutoff})")
-            result = collapse_rare(taxonomy, ARGS.model_db, ARGS.cutoff, ARGS.collapse_rare_threshold, str(workdir))
+            result = collapse_rare(taxonomy, ARGS.model_db, ARGS.cutoff, ARGS.collapse_rare_threshold, str(workdir), ARGS.collapse_rare_abundance)
             if result is not None:
                 taxonomy, metrics, collapsed = result
                 model_db = None            # the taxonomy carries the model files now

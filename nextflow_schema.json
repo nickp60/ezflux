@@ -329,6 +329,14 @@
                     "help_text": "Taxa with a relative abundance below `--micom_cutoff` are dropped entirely, taxa between `--micom_cutoff` and this threshold are collapsed, and taxa above it are included as full organisms. The threshold must therefore be higher than `--micom_cutoff`; the pipeline stops otherwise.",
                     "fa_icon": "fas fa-filter"
                 },
+                "collapse_rare_abundance": {
+                    "type": "string",
+                    "default": "threshold",
+                    "enum": ["sum", "median", "threshold"],
+                    "description": "Abundance given to the collapsed 'rare' organism (with --collapse_rare_bugs): --rare_bugs_threshold itself (default), or the sum or the median of the abundances of the collapsed taxa.",
+                    "help_text": "`threshold` (default) uses `--rare_bugs_threshold`, so the pooled tail counts as one organism just at the threshold. `median` uses the median relative abundance of the collapsed taxa, so the pooled tail counts as one typical rare organism. `sum` keeps the total abundance of the collapsed taxa. As always, the abundances of the community are made relative again when the community is built.",
+                    "fa_icon": "fas fa-balance-scale-left"
+                },
                 "micom_tolerance": {
                     "type": "number",
                     "default": 1e-06,

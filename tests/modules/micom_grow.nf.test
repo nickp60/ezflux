@@ -85,8 +85,9 @@ nextflow_workflow {
         // relative abundances: strain_a 0.331, strain_c 0.305, strain_b 0.271, strain_d 0.093 -> b and d are collapsed
         when {
             params {
-                collapse_rare_bugs  = true
-                rare_bugs_threshold = 0.3
+                collapse_rare_bugs      = true
+                rare_bugs_threshold     = 0.3
+                collapse_rare_abundance = 'sum'
             }
             workflow { inputs }
         }
@@ -106,6 +107,65 @@ nextflow_workflow {
                 { assert manifest[1].split(',')[manifest[0].split(',').toList().indexOf('n_collapsed_taxa')] == '2' },
                 { assert new File(workflow.out.models[0].toString(), 'manifest.csv').text.contains('n_collapsed_taxa') }
             )
+        }
+    }
+
+    // relative abundances: strain_a 0.331238, strain_c 0.304642 stay full; strain_b 0.270793 and strain_d 0.093327 are collapsed
+    test("collapse_rare_abundance = median gives 'rare' the median abundance of the collapsed taxa") {
+        when {
+            params {
+                collapse_rare_bugs      = true
+                rare_bugs_threshold     = 0.3
+                collapse_rare_abundance = 'median'
+            }
+            workflow { inputs }
+        }
+        then {
+            def rows = growthRates(workflow.out.zip[0])
+            def command = new File(workflow.out.models[0].toString()).parentFile.toPath().resolve('.command.sh').toFile().text
+            // median 0.18206 of 0.331238 + 0.304642 + 0.18206 = 0.817940 -> 0.22257
+            assertAll(
+                { assert workflow.success },
+                { assert command.contains('--collapse-rare-abundance median') },
+                { assert rows.collect { row -> row.taxon }.sort() == [ 'rare', 'strain_a', 'strain_c' ] },
+                { assert (rows.find { row -> row.taxon == 'rare' }.abundance.toDouble() - 0.22257).abs() < 1e-4 }
+            )
+        }
+    }
+
+    test("collapse_rare_abundance defaults to threshold: 'rare' gets the abundance of rare_bugs_threshold") {
+        when {
+            params {
+                collapse_rare_bugs  = true
+                rare_bugs_threshold = 0.3
+            }
+            workflow { inputs }
+        }
+        then {
+            def rows = growthRates(workflow.out.zip[0])
+            def manifest = new File(workflow.out.build_manifest[0].toString()).readLines()
+            def col = { name -> manifest[1].split(',')[manifest[0].split(',').toList().indexOf(name)] }
+            // 0.3 of 0.331238 + 0.304642 + 0.3 = 0.935880 -> 0.32055
+            assertAll(
+                { assert workflow.success },
+                { assert (rows.find { row -> row.taxon == 'rare' }.abundance.toDouble() - 0.32055).abs() < 1e-4 },
+                { assert col('rare_abundance_mode') == 'threshold' },
+                { assert (col('rare_abundance_fraction').toDouble() - 0.32055).abs() < 1e-4 }
+            )
+        }
+    }
+
+    test("an unknown collapse_rare_abundance is rejected") {
+        when {
+            params {
+                collapse_rare_bugs      = true
+                rare_bugs_threshold     = 0.3
+                collapse_rare_abundance = 'mean'
+            }
+            workflow { inputs }
+        }
+        then {
+            assert workflow.failed
         }
     }
 
